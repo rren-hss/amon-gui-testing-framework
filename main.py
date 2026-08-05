@@ -7,10 +7,11 @@ from config import (
     DEMO_MODE)
 
 from report_generator import (
-    generate_html_report,
-    open_report_prompt,
+    generate_reports,
+    open_reports,
     print_summary,
 )
+from run_context import RUN_DIR
 from step_executor import execute_step
 from tests import TEST_STEPS
 from utils import setup_logging, timestamp
@@ -67,8 +68,8 @@ def add_framework_failure(results, error):
 
 def main():
     setup_logging()
-    results = []
-
+    all_results = []
+    test_results = []
 
     polaris_metadata = get_polaris_version_metadata(
         inventory_path=ANSIBLE_INVENTORY_PATH,
@@ -95,6 +96,7 @@ def main():
         abort_execution = False
 
         for test_case in TEST_STEPS:
+            case_results = []
             logging.info(
                 "Starting test case %s - %s",
                 test_case["id"],
@@ -103,25 +105,21 @@ def main():
 
             for step in test_case.get("steps", []):
                 step_result = execute_step(test_case, step)
-                results.append(step_result)
+                case_results.append(step_result)
+                all_results.append(step_result)
 
-                if DEMO_MODE and step.get("demo_pause", "False"):
+                if DEMO_MODE and step.get("demo_pause", False):
                     demo_action = pause_for_demo(
                         test_case_name=test_case["name"],
                         step_id=step["step_id"],
-                        step_name=step.get("name", step.get("instruction", "UNKNOWN"))
+                        step_name=step.get("name", step.get("instruction", "UNKNOWN")),
+                        status =step_result["status"],
                     )
-                if demo_action == "ABORT":
-                    abort_execution = True
-                    logging.info("Demo aborted by presenter")
-                    break
+                    if demo_action == "ABORT":
+                        abort_execution = True
+                        logging.info("Demo aborted by presenter")
+                        break
                 
-
-                logging.info(
-                    "Completed %s with status %s",
-                    step["step_id"],
-                    step_result["status"],
-                )
 
                 if should_stop_after_step(test_case, step_result):
                     abort_execution = True
@@ -131,17 +129,35 @@ def main():
                         logging.info("Execution stopped because test case %s uses the abort failure policy", test_case["id"])
                     break
 
+            test_results.append(
+                (test_case,
+                case_results,
+                )
+            )
+
             if abort_execution:
                 break
 
-        overall_result = determine_overall_result(results)
+        overall_result = determine_overall_result(all_results)
 
     except Exception as error:
         logging.exception("Unhandled framework error.")
-        add_framework_failure(results, error)
+        framework_results = []
+        add_framework_failure(framework_results, error)
+        all_results.extend(framework_results)
+        test_results.append(
+            (
+                {
+                    "id": "FRAMEWORK",
+                    "name": "FRAMEWORK Execution",
+                    "gui": "N/A"
+                },
+                framework_results
+            )
+        )
         overall_result = "FAILED"
 
-    print_summary(results)
+    print_summary(all_results)
     report_metadata = {
         "system_name": "Amon",
         "units_under_test": [
@@ -157,12 +173,15 @@ def main():
         "polaris_packages_by_host": polaris_metadata["hosts"],
     }
 
-    report_path = generate_html_report(results, overall_result, report_metadata)
+    report_paths = generate_reports(test_results, report_metadata,)
 
-    logging.info("Test execution completed: %s", overall_result)
-    logging.info("Report generated: %s", report_path)
-
-    open_report_prompt(report_path)
+    logging.info("Running artifacts stored in: %s", RUN_DIR,)
+    for report_path in report_paths:
+        logging.info(
+            "Test report generated: %s",
+            report_path,
+        )
+    open_reports(report_paths)
 
 
 if __name__ == "__main__":

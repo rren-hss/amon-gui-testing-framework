@@ -13,7 +13,7 @@ def get_polaris_version_metadata(
         "ansible",
         host_group,
         "-i",
-        inventory_path,
+        str(inventory_path),
         "-m",
         "shell",
         "-a",

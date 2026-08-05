@@ -1,17 +1,16 @@
 import sys
-import os
 import logging
 from datetime import datetime
-from config import LOG_PATH
+from run_context import(
+    LOG_PATH,
+    initialize_run_directories,
+)
 
 def timestamp():
     return datetime.now().strftime("%Y-%m-%d %H:%M:%S")
 
 def setup_logging():
-    log_directory = os.path.dirname(LOG_PATH)
-
-    if log_directory:
-        os.makedirs(log_directory, exist_ok=True)
+    initialize_run_directories()
 
     logging.basicConfig(
         level=logging.DEBUG,
@@ -26,6 +25,9 @@ def setup_logging():
             logging.StreamHandler(sys.stdout),
         ],
         force=True,
+    )
+    logging.getLogger("paramiko").setLevel(
+    logging.WARNING
     )
 
     logging.info("=" * 60)

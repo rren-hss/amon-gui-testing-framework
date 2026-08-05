@@ -3,6 +3,7 @@ import os
 import subprocess
 
 from squish_runner import run_squish_step
+from remote_runner import run_remote_step
 from tests import APPLICATIONS
 from utils import timestamp
 from config import MANUAL_POPUP_PATH
@@ -57,7 +58,7 @@ def run_manual_step(test_case, step):
     )
     command = [
         "/usr/bin/python3",
-        popup_path,
+        str(popup_path),
         "--test-case-id",
         test_case["id"],
         "--test-case-name",
@@ -207,6 +208,15 @@ def execute_step(test_case, step):
 
     if step_type == "manual":
         return run_manual_step(
+            test_case,
+            step,
+        )
+    if step_type in (
+        "terminal",
+        "ssh",
+        "command",
+    ):
+        return run_remote_step(
             test_case,
             step,
         )

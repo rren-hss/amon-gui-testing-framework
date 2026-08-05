@@ -1,20 +1,35 @@
 import html
-import os
 import subprocess
 from datetime import datetime
-from config import REPORT_PATH
-from tests import TEST_STEPS
+from pathlib import Path
+
+from config import OPEN_REPORTS
+from run_context import (
+    REPORT_DIR,
+    unique_artifact_name,
+)
+
 
 def _metadata_html(metadata):
+    """Create the test-configuration section of the report."""
+
     metadata = metadata or {}
 
     system_name = html.escape(
-        str(metadata.get("system_name", "Not specified"))
+        str(
+            metadata.get(
+                "system_name",
+                "Not specified",
+            )
+        )
     )
 
     units_under_test = ", ".join(
         html.escape(str(item))
-        for item in metadata.get("units_under_test", [])
+        for item in metadata.get(
+            "units_under_test",
+            [],
+        )
     ) or "Not specified"
 
     software_articles = ", ".join(
@@ -34,7 +49,12 @@ def _metadata_html(metadata):
     ) or "Not specified"
 
     polaris_version = html.escape(
-        str(metadata.get("polaris_version", "TBD"))
+        str(
+            metadata.get(
+                "polaris_version",
+                "TBD",
+            )
+        )
     )
 
     version_status = html.escape(
@@ -52,43 +72,23 @@ def _metadata_html(metadata):
 
         <div class="metadata-grid">
             <div class="metadata-item">
-                <span class="metadata-label">
-                    Unit Under Test
-                </span>
-
-                <span class="metadata-value">
-                    {system_name}
-                </span>
+                <span class="metadata-label">Unit Under Test</span>
+                <span class="metadata-value">{system_name}</span>
             </div>
 
             <div class="metadata-item">
-                <span class="metadata-label">
-                    Subsystems Under Test
-                </span>
-
-                <span class="metadata-value">
-                    {units_under_test}
-                </span>
+                <span class="metadata-label">Subsystems Under Test</span>
+                <span class="metadata-value">{units_under_test}</span>
             </div>
 
             <div class="metadata-item">
-                <span class="metadata-label">
-                    Software Test Articles
-                </span>
-
-                <span class="metadata-value">
-                    {software_articles}
-                </span>
+                <span class="metadata-label">Software Test Articles</span>
+                <span class="metadata-value">{software_articles}</span>
             </div>
 
             <div class="metadata-item">
-                <span class="metadata-label">
-                    Hardware Test Articles
-                </span>
-
-                <span class="metadata-value">
-                    {hardware_articles}
-                </span>
+                <span class="metadata-label">Hardware Test Articles</span>
+                <span class="metadata-value">{hardware_articles}</span>
             </div>
 
             <div class="metadata-item">
@@ -96,9 +96,7 @@ def _metadata_html(metadata):
                     Polaris Software Version
                 </span>
 
-                <span class="metadata-value">
-                    {polaris_version}
-                </span>
+                <span class="metadata-value">{polaris_version}</span>
 
                 <span class="metadata-status">
                     Lookup status: {version_status}
@@ -107,253 +105,435 @@ def _metadata_html(metadata):
         </div>
     </section>
     """
-    
-def _normalize_status(status):
-    status = str(status or "").upper()
 
-    if status.startswith("ABORT"):
+
+def _normalize_status(status):
+    """Convert result statuses into standard report values."""
+
+    normalized = str(status or "").strip().upper()
+
+    if normalized.startswith("ABORT"):
         return "ABORTED"
 
-    if status.startswith("FAIL"):
+    if normalized.startswith("FAIL"):
         return "FAIL"
+
+    if normalized.startswith("WARN"):
+        return "WARN"
 
     return "PASS"
 
 
 def _normalize_result_item(item):
+    """Normalize result keys produced by different step runners."""
+
     return {
         "test_case": item.get(
             "test_case",
-            item.get("test_case_id", "UNKNOWN"),
+            item.get(
+                "test_case_id",
+                "UNKNOWN",
+            ),
         ),
         "test_name": item.get(
             "test_name",
-            item.get("test_case_name", ""),
+            item.get(
+                "test_case_name",
+                "",
+            ),
         ),
-        "gui": item.get("gui", "Unknown"),
+        "gui": item.get(
+            "gui",
+            "Unknown",
+        ),
         "type": item.get(
             "type",
-            item.get("step_type", "Unknown"),
+            item.get(
+                "step_type",
+                "Unknown",
+            ),
         ),
         "step": item.get(
             "step",
-            item.get("step_id", "—"),
+            item.get(
+                "step_id",
+                "—",
+            ),
         ),
-        "instruction": item.get("instruction", ""),
-        "expected": item.get("expected", ""),
-        "actual": item.get("actual", ""),
-        "status": item.get("status", "FAIL"),
+        "instruction": item.get(
+            "instruction",
+            "",
+        ),
+        "expected": item.get(
+            "expected",
+            "",
+        ),
+        "actual": item.get(
+            "actual",
+            "",
+        ),
+        "status": item.get(
+            "status",
+            "FAIL",
+        ),
         "screenshot": item.get(
             "screenshot",
             item.get("evidence"),
         ),
-        "notes": item.get("notes", ""),
-        "timestamp": item.get("timestamp", ""),
+        "notes": item.get(
+            "notes",
+            "",
+        ),
+        "timestamp": item.get(
+            "timestamp",
+            "",
+        ),
     }
 
 
-def generate_html_report(results, overall_result, metadata):
+def _status_css_class(status):
+    """Return the CSS class for a normalized status."""
+
+    normalized = _normalize_status(status)
+
+    if normalized == "PASS":
+        return "pass"
+
+    if normalized == "ABORTED":
+        return "aborted"
+
+    if normalized == "WARN":
+        return "warn"
+
+    return "fail"
+
+
+def _determine_overall_result(results):
+    """Determine the overall result for one test case."""
+
+    statuses = [
+        _normalize_status(
+            result.get("status")
+        )
+        for result in results
+    ]
+
+    if "ABORTED" in statuses:
+        return "ABORTED"
+
+    if "FAIL" in statuses:
+        return "FAILED"
+
+    if "WARN" in statuses:
+        return "COMPLETED WITH WARNINGS"
+
+    return "PASSED"
+
+
+def _count_step_types(results):
+    """Count automated, manual, and terminal steps."""
+
+    automated_count = 0
+    manual_count = 0
+    terminal_count = 0
+
+    for item in results:
+        step_type = str(
+            item.get(
+                "type",
+                "",
+            )
+        ).strip().lower()
+
+        if step_type in (
+            "auto",
+            "automated",
+            "squish",
+            "gui automation",
+        ):
+            automated_count += 1
+
+        elif step_type == "manual":
+            manual_count += 1
+
+        elif any(
+            value in step_type
+            for value in (
+                "terminal",
+                "ssh",
+                "command",
+            )
+        ):
+            terminal_count += 1
+
+    return (
+        automated_count,
+        manual_count,
+        terminal_count,
+    )
+
+
+def _screenshot_html(screenshot_path):
+    """Create a clickable screenshot preview."""
+
+    if not screenshot_path:
+        return "<i>—</i>"
+
+    absolute_path = Path(
+        screenshot_path
+    ).expanduser().resolve()
+
+    if not absolute_path.exists():
+        return "<i>Screenshot unavailable</i>"
+
+    safe_url = html.escape(
+        absolute_path.as_uri(),
+        quote=True,
+    )
+
+    return (
+        f'<a href="{safe_url}" target="_blank">'
+        f'<img src="{safe_url}" alt="Test screenshot">'
+        f"</a>"
+    )
+
+
+def _result_rows_html(
+    test_case,
+    results,
+):
+    """Create the table rows for one test case."""
+
+    if not results:
+        return """
+        <tr>
+            <td colspan="11">
+                <i>No results were recorded for this test.</i>
+            </td>
+        </tr>
+        """
+
+    rows = ""
+
+    test_id = str(
+        test_case.get(
+            "id",
+            "UNKNOWN",
+        )
+    )
+
+    for index, item in enumerate(results):
+        status = _normalize_status(
+            item.get("status")
+        )
+
+        status_class = _status_css_class(
+            status
+        )
+
+        screenshot_html = _screenshot_html(
+            item.get("screenshot")
+        )
+
+        step_gui = str(
+            item.get(
+                "gui",
+                test_case.get(
+                    "gui",
+                    "Unknown",
+                ),
+            )
+        )
+
+        step_type = str(
+            item.get("type")
+            or "Unknown"
+        )
+
+        step_value = str(
+            item.get("step")
+            or "—"
+        )
+
+        instruction = str(
+            item.get("instruction")
+            or "—"
+        )
+
+        expected = str(
+            item.get("expected")
+            or "—"
+        )
+
+        actual = str(
+            item.get("actual")
+            or "—"
+        )
+
+        notes = str(
+            item.get("notes")
+            or "—"
+        )
+
+        timestamp_value = str(
+            item.get("timestamp")
+            or "—"
+        )
+
+        if index == 0:
+            test_case_cell = (
+                f'<td rowspan="{len(results)}">'
+                f"{html.escape(test_id)}"
+                f"</td>"
+            )
+        else:
+            test_case_cell = ""
+
+        rows += (
+            "<tr>"
+            f"{test_case_cell}"
+            f"<td>{html.escape(step_gui)}</td>"
+            f"<td>{html.escape(step_type)}</td>"
+            f"<td>{html.escape(step_value)}</td>"
+            f'<td class="text-content">'
+            f"{html.escape(instruction)}"
+            f"</td>"
+            f'<td class="text-content">'
+            f"{html.escape(expected)}"
+            f"</td>"
+            f'<td class="terminal-output">'
+            f"{html.escape(actual)}"
+            f"</td>"
+            f'<td class="status-cell {status_class}">'
+            f"<b>{html.escape(status)}</b>"
+            f"</td>"
+            f"<td>{screenshot_html}</td>"
+            f'<td class="text-content">'
+            f"{html.escape(notes)}"
+            f"</td>"
+            f"<td>{html.escape(timestamp_value)}</td>"
+            "</tr>"
+        )
+
+    return rows
+
+
+def generate_html_report(
+    test_case,
+    results,
+    metadata=None,
+):
+    """
+    Generate one HTML report for one test case.
+
+    Args:
+        test_case:
+            Test definition dictionary from tests.py.
+
+        results:
+            Results belonging only to this test case.
+
+        metadata:
+            Optional system and software metadata.
+
+    Returns:
+        Absolute report path as a string.
+    """
+
+    REPORT_DIR.mkdir(
+        parents=True,
+        exist_ok=True,
+    )
+
+    test_id = str(
+        test_case.get(
+            "id",
+            "UNKNOWN",
+        )
+    )
+
+    test_name = str(
+        test_case.get(
+            "name",
+            "Unnamed Test",
+        )
+    )
+
+    report_path = (
+        REPORT_DIR
+        / unique_artifact_name(
+            test_id,
+            extension="html",
+        )
+    )
+
     normalized_results = [
         _normalize_result_item(item)
         for item in results
     ]
 
-    grouped_results = {}
-
-    for item in normalized_results:
-        test_case_id = str(item["test_case"]).strip()
-
-        if test_case_id not in grouped_results:
-            grouped_results[test_case_id] = []
-
-        grouped_results[test_case_id].append(item)
+    overall_result = _determine_overall_result(
+        normalized_results
+    )
 
     total = len(normalized_results)
 
     passed = sum(
-        1
+        _normalize_status(
+            item["status"]
+        ) == "PASS"
         for item in normalized_results
-        if _normalize_status(item["status"]) == "PASS"
     )
 
     failed = sum(
-        1
+        _normalize_status(
+            item["status"]
+        ) == "FAIL"
         for item in normalized_results
-        if _normalize_status(item["status"]) == "FAIL"
+    )
+
+    warnings = sum(
+        _normalize_status(
+            item["status"]
+        ) == "WARN"
+        for item in normalized_results
     )
 
     aborted = sum(
-        1
+        _normalize_status(
+            item["status"]
+        ) == "ABORTED"
         for item in normalized_results
-        if _normalize_status(item["status"]) == "ABORTED"
     )
 
-    rows_html = ""
+    (
+        automated_count,
+        manual_count,
+        terminal_count,
+    ) = _count_step_types(
+        normalized_results
+    )
 
-    for test_definition in TEST_STEPS:
-        test_case = test_definition["id"].strip()
-        group = grouped_results.get(test_case, [])
-
-        if not group:
-            continue
-
-        group_size = len(group)
-
-        group_passed = sum(
-            1
-            for item in group
-            if _normalize_status(item["status"]) == "PASS"
-        )
-
-        group_failed = sum(
-            1
-            for item in group
-            if _normalize_status(item["status"]) == "FAIL"
-        )
-
-        group_aborted = sum(
-            1
-            for item in group
-            if _normalize_status(item["status"]) == "ABORTED"
-        )
-
-        if group_aborted > 0:
-            group_status = "ABORTED"
-            group_color_class = "aborted"
-        elif group_failed > 0:
-            group_status = "FAIL"
-            group_color_class = "fail"
-        else:
-            group_status = "PASS"
-            group_color_class = "pass"
-
-        automated_count = sum(
-            1
-            for item in group
-            if item["type"].lower() == ("auto", "automated")
-        )
-
-        manual_count = sum(
-            1
-            for item in group
-            if item["type"].lower() == "manual"
-        )
-
-        test_name = test_definition.get(
-            "name",
-            group[0].get("test_name", ""),
-        )
-        gui = test_definition.get(
-            "gui",
-            group[0].get("gui", "Unknown"),
-        )
-        
-        rows_html += f"""
-        <tr class="banner {group_color_class}">
-            <td colspan="12">
-                <span class="banner-title">
-                    {html.escape(str(test_case))} -
-                    {html.escape(str(test_name))}
-                </span>
-
-                <span class="banner-stats">
-                    {group_passed}/{group_size} Steps Passed |
-                    {automated_count} Automated /
-                    {manual_count} Manual |
-                    {group_status}
-                </span>
-            </td>
-        </tr>
-            """
-
-        for index, item in enumerate(group):
-            status = _normalize_status(item["status"])
-
-            if status == "PASS":
-                status_class = "pass"
-            elif status == "ABORTED":
-                status_class = "aborted"
-            else:
-                status_class = "fail"
-
-            marker_style = ""
-
-            if group_color_class == "pass":
-                border_color = "#1a7a1a"
-            elif group_color_class == "aborted":
-                border_color = "#9a6700"
-            else:
-                border_color = "#b30000"
-
-            marker_style = (
-                f' style="border-left:4px solid {border_color};'
-                f' padding:0;"'
-            )        
-
-            screenshot_html = _screenshot_html(
-                item.get("screenshot")
-            )
-
-            timestamp_value = item.get("timestamp") or "—"
-            notes_value = item.get("notes") or "—"
-            instruction_value = item.get("instruction") or "—"
-            expected_value = item.get("expected") or "—"
-            actual_value = item.get("actual") or "—"
-            step_value = item.get("step") or "—"
-            type_value = item.get("type") or "Unknown"
-
-            if index == 0:
-                rows_html += f"""
-        <tr>
-            <td{marker_style}></td>
-
-            <td rowspan="{group_size}">
-                {html.escape(str(test_case))}
-            </td>
-
-            <td rowspan="{group_size}">
-                {html.escape(str(gui))}
-            </td>
-
-            <td>{html.escape(str(type_value))}</td>
-            <td>{html.escape(str(step_value))}</td>
-            <td>{html.escape(str(instruction_value))}</td>
-            <td>{html.escape(str(expected_value))}</td>
-            <td>{html.escape(str(actual_value))}</td>
-
-            <td class="status-cell {status_class}">
-                <b>{html.escape(status)}</b>
-            </td>
-
-            <td>{screenshot_html}</td>
-            <td>{html.escape(str(notes_value))}</td>
-            <td>{html.escape(str(timestamp_value))}</td>
-        </tr>
-                """
-            else:
-                rows_html += f"""
-        <tr>
-            <td{marker_style}></td>
-            <td>{html.escape(str(type_value))}</td>
-            <td>{html.escape(str(step_value))}</td>
-            <td>{html.escape(str(instruction_value))}</td>
-            <td>{html.escape(str(expected_value))}</td>
-            <td>{html.escape(str(actual_value))}</td>
-
-            <td class="status-cell {status_class}">
-                <b>{html.escape(status)}</b>
-            </td>
-
-            <td>{screenshot_html}</td>
-            <td>{html.escape(str(notes_value))}</td>
-            <td>{html.escape(str(timestamp_value))}</td>
-        </tr>
-                """
+    rows_html = _result_rows_html(
+        test_case,
+        normalized_results,
+    )
 
     generated_time = datetime.now().strftime(
         "%Y-%m-%d %H:%M:%S"
     )
-    metadata_section = _metadata_html(metadata)
+
+    metadata_section = _metadata_html(
+        metadata
+    )
+
+    overall_class = _status_css_class(
+        overall_result
+    )
+
+    safe_report_path = html.escape(
+        str(report_path)
+    )
 
     report_html = f"""
 <!DOCTYPE html>
@@ -362,17 +542,30 @@ def generate_html_report(results, overall_result, metadata):
 <head>
     <meta charset="UTF-8">
 
-    <title>Multistep GUI Test Report</title>
+    <meta
+        name="viewport"
+        content="width=device-width, initial-scale=1.0"
+    >
+
+    <title>{html.escape(test_id)} Test Report</title>
 
     <style>
         body {{
             font-family: Arial, sans-serif;
-            margin: 40px;
+            margin: 32px;
             color: #222;
+            background: #fff;
         }}
 
         h1 {{
-            margin-bottom: 20px;
+            margin-bottom: 6px;
+        }}
+
+        .test-title {{
+            margin-top: 0;
+            color: #555;
+            font-size: 18px;
+            font-weight: normal;
         }}
 
         table {{
@@ -387,15 +580,15 @@ def generate_html_report(results, overall_result, metadata):
             padding: 10px;
             vertical-align: top;
             overflow-wrap: anywhere;
+            text-align: left;
         }}
 
         th {{
             background: #a6a6a6;
-            text-align: left;
         }}
 
         img {{
-            max-width: 160px;
+            max-width: 180px;
             height: auto;
             border: 1px solid #bbb;
         }}
@@ -403,8 +596,63 @@ def generate_html_report(results, overall_result, metadata):
         .summary {{
             border: 1px solid #ccc;
             background: #f7f7f7;
-            padding: 15px;
+            padding: 16px;
             margin-bottom: 20px;
+        }}
+
+        .summary-grid {{
+            display: grid;
+            grid-template-columns:
+                repeat(auto-fit, minmax(150px, 1fr));
+            gap: 10px;
+            margin-top: 12px;
+        }}
+
+        .summary-item {{
+            background: #fff;
+            border: 1px solid #ddd;
+            padding: 10px;
+        }}
+
+        .summary-label {{
+            display: block;
+            color: #555;
+            font-size: 12px;
+            font-weight: bold;
+            text-transform: uppercase;
+        }}
+
+        .summary-value {{
+            display: block;
+            margin-top: 4px;
+            font-size: 17px;
+        }}
+
+        .overall-status {{
+            display: inline-block;
+            padding: 6px 10px;
+            border-radius: 4px;
+            font-weight: bold;
+        }}
+
+        .overall-status.pass {{
+            background: #d9f2d9;
+            color: #1a7a1a;
+        }}
+
+        .overall-status.fail {{
+            background: #fbd6d6;
+            color: #b30000;
+        }}
+
+        .overall-status.aborted {{
+            background: #fff1c7;
+            color: #9a6700;
+        }}
+
+        .overall-status.warn {{
+            background: #fff4cc;
+            color: #806000;
         }}
 
         .status-cell.pass {{
@@ -422,42 +670,38 @@ def generate_html_report(results, overall_result, metadata):
             color: #9a6700;
         }}
 
-        tr.banner td {{
-            font-weight: bold;
-            padding: 8px 10px;
+        .status-cell.warn {{
+            background: #fff4cc;
+            color: #806000;
         }}
 
-        tr.banner.pass td {{
-            background: #d9f2d9;
-            color: #1a7a1a;
+        .text-content {{
+            white-space: pre-wrap;
+            text-align: left;
         }}
 
-        tr.banner.fail td {{
-            background: #fbd6d6;
-            color: #b30000;
-        }}
-
-        tr.banner.aborted td {{
-            background: #fff1c7;
-            color: #9a6700;
-        }}
-
-        .banner-title {{
-            float: left;
-        }}
-
-        .banner-stats {{
-            float: right;
+        .terminal-output {{
+            white-space: pre-wrap;
+            font-family:
+                "Courier New",
+                Courier,
+                monospace;
+            font-size: 11px;
+            line-height: 1.35;
+            text-align: left;
+            padding: 8px;
         }}
 
         .report-path {{
-            font-size: 13px;
+            margin-top: 15px;
             color: #555;
+            font-size: 13px;
+            overflow-wrap: anywhere;
         }}
 
         .test-metadata {{
             border: 1px solid #ccc;
-            background: #ffffff;
+            background: #fff;
             padding: 20px;
             margin-bottom: 20px;
         }}
@@ -500,14 +744,29 @@ def generate_html_report(results, overall_result, metadata):
             color: #666;
             font-size: 12px;
         }}
+
+        @media print {{
+            body {{
+                margin: 10px;
+            }}
+
+            .summary,
+            .test-metadata {{
+                break-inside: avoid;
+            }}
+        }}
     </style>
 </head>
 
 <body>
 
-    <h1>Multistep GUI Test Report</h1>
+    <h1>Test Report: {html.escape(test_id)}</h1>
+
+    <p class="test-title">{html.escape(test_name)}</p>
+
     {metadata_section}
-    <div class="summary">
+
+    <section class="summary">
         <p>
             <b>Generated:</b>
             {html.escape(generated_time)}
@@ -515,37 +774,79 @@ def generate_html_report(results, overall_result, metadata):
 
         <p>
             <b>Overall Result:</b>
-            {html.escape(str(overall_result))}
+
+            <span class="overall-status {overall_class}">
+                {html.escape(overall_result)}
+            </span>
         </p>
 
-        <p>
-            <b>Total Steps:</b> {total}<br>
-            <b>Passed:</b> {passed}<br>
-            <b>Failed:</b> {failed}<br>
-            <b>Aborted:</b> {aborted}
-        </p>
+        <div class="summary-grid">
+            <div class="summary-item">
+                <span class="summary-label">Total Steps</span>
+                <span class="summary-value">{total}</span>
+            </div>
+
+            <div class="summary-item">
+                <span class="summary-label">Passed</span>
+                <span class="summary-value">{passed}</span>
+            </div>
+
+            <div class="summary-item">
+                <span class="summary-label">Failed</span>
+                <span class="summary-value">{failed}</span>
+            </div>
+
+            <div class="summary-item">
+                <span class="summary-label">Warnings</span>
+                <span class="summary-value">{warnings}</span>
+            </div>
+
+            <div class="summary-item">
+                <span class="summary-label">Aborted</span>
+                <span class="summary-value">{aborted}</span>
+            </div>
+
+            <div class="summary-item">
+                <span class="summary-label">Automated Steps</span>
+                <span class="summary-value">{automated_count}</span>
+            </div>
+
+            <div class="summary-item">
+                <span class="summary-label">Manual Steps</span>
+                <span class="summary-value">{manual_count}</span>
+            </div>
+
+            <div class="summary-item">
+                <span class="summary-label">
+                    Terminal / SSH Steps
+                </span>
+
+                <span class="summary-value">{terminal_count}</span>
+            </div>
+        </div>
 
         <p class="report-path">
             <b>Report Path:</b>
-            {html.escape(str(REPORT_PATH))}
+            {safe_report_path}
         </p>
-    </div>
+    </section>
 
     <table>
         <thead>
             <tr>
-                <th style="width:8px; padding:0;"></th>
-                <th>Test Case</th>
-                <th>GUI</th>
-                <th>Type</th>
-                <th>Step</th>
-                <th>Instruction</th>
-                <th>Expected Result</th>
-                <th>Actual Result</th>
-                <th>Status</th>
-                <th>Screenshot</th>
-                <th>Notes</th>
-                <th>Timestamp</th>
+                <th style="width: 7%;">Test Case</th>
+                <th style="width: 8%;">GUI / Computer</th>
+                <th style="width: 7%;">Type</th>
+                <th style="width: 6%;">Step</th>
+                <th style="width: 10%;">Instruction</th>
+                <th style="width: 10%;">Expected Result</th>
+                <th style="width: 28%;">
+                    Actual / Terminal Output
+                </th>
+                <th style="width: 7%;">Status</th>
+                <th style="width: 8%;">Screenshot</th>
+                <th style="width: 7%;">Notes</th>
+                <th style="width: 10%;">Timestamp</th>
             </tr>
         </thead>
 
@@ -558,26 +859,57 @@ def generate_html_report(results, overall_result, metadata):
 </html>
 """
 
-    report_directory = os.path.dirname(REPORT_PATH)
-
-    if report_directory:
-        os.makedirs(report_directory, exist_ok=True)
-
-    with open(
-        REPORT_PATH,
+    with report_path.open(
         "w",
         encoding="utf-8",
     ) as report_file:
-        report_file.write(report_html)
+        report_file.write(
+            report_html
+        )
 
-    print(f"HTML report generated: {REPORT_PATH}")
+    print(
+        f"HTML report generated: {report_path}"
+    )
 
-    return REPORT_PATH
+    return str(report_path)
+
+
+def generate_reports(
+    test_results,
+    metadata=None,
+):
+    """
+    Generate one report for every test case.
+
+    Expected format:
+
+        [
+            (test_case_dictionary, list_of_results),
+            (test_case_dictionary, list_of_results),
+        ]
+    """
+
+    report_paths = []
+
+    for test_case, results in test_results:
+        report_path = generate_html_report(
+            test_case=test_case,
+            results=results,
+            metadata=metadata,
+        )
+
+        report_paths.append(
+            report_path
+        )
+
+    return report_paths
 
 
 def print_summary(results):
+    """Print the complete run summary in the terminal."""
+
     print("\n" + "=" * 60)
-    print("MULTISTEP GUI TEST SUMMARY")
+    print("TEST EXECUTION SUMMARY")
     print("=" * 60)
 
     if not results:
@@ -585,8 +917,13 @@ def print_summary(results):
         return
 
     for raw_item in results:
-        item = _normalize_result_item(raw_item)
-        status = _normalize_status(item["status"])
+        item = _normalize_result_item(
+            raw_item
+        )
+
+        status = _normalize_status(
+            item["status"]
+        )
 
         print(
             f"{item['test_case']} "
@@ -595,41 +932,64 @@ def print_summary(results):
             f"{item['test_name']}"
         )
 
+    total = len(results)
 
-def open_report_prompt(report_path=None):
-    path = report_path or REPORT_PATH
-
-    response = input(
-        "\nWould you like to open the HTML report? "
-        "TYPE YES or NO: "
-    ).strip().upper()
-
-    if response == "YES":
-        subprocess.Popen(
-            ["xdg-open", path]
-        )
-
-
-def _screenshot_html(screenshot_path):
-    if not screenshot_path:
-        return "<i>—</i>"
-
-    absolute_path = os.path.abspath(
-        str(screenshot_path)
+    passed = sum(
+        _normalize_status(
+            item.get("status")
+        ) == "PASS"
+        for item in results
     )
 
-    if not os.path.exists(absolute_path):
-        return "<i>Screenshot unavailable</i>"
-
-    file_url = "file://" + absolute_path
-    safe_url = html.escape(
-        file_url,
-        quote=True,
+    failed = sum(
+        _normalize_status(
+            item.get("status")
+        ) == "FAIL"
+        for item in results
     )
 
-    return (
-        f'<a href="{safe_url}" target="_blank">'
-        f'<img src="{safe_url}" '
-        f'alt="Test screenshot">'
-        f"</a>"
+    warnings = sum(
+        _normalize_status(
+            item.get("status")
+        ) == "WARN"
+        for item in results
     )
+
+    aborted = sum(
+        _normalize_status(
+            item.get("status")
+        ) == "ABORTED"
+        for item in results
+    )
+
+    print("-" * 60)
+    print(f"Total steps: {total}")
+    print(f"Passed: {passed}")
+    print(f"Failed: {failed}")
+    print(f"Warnings: {warnings}")
+    print(f"Aborted: {aborted}")
+    print("=" * 60)
+
+
+def open_reports(report_paths):
+    """
+    Open generated reports only when OPEN_REPORTS is enabled.
+    """
+
+    if not OPEN_REPORTS:
+        return
+
+    for report_path in report_paths:
+        try:
+            subprocess.Popen(
+                [
+                    "xdg-open",
+                    str(report_path),
+                ]
+            )
+
+        except OSError as error:
+            print(
+                "Could not open report "
+                f"{report_path}: {error}"
+            )

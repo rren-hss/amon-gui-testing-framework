@@ -115,12 +115,11 @@ def verify_agui_prelogin():
 
 def verify_cgui_prelogin():
     try:
-        logo = waitForObject(names.polaris_cGUI_logo_Image, 3000)
+        waitForObject(names.polaris_cGUI_logo_Image, 3000)
         test.warning("Launch Deviation: cGUI opened on the System Ready screen. Clicking on the logo to continue to login.")
         mouseClick(waitForObject(names.polaris_cGUI_logo_Image), 205, 53, Qt.LeftButton)
     except LookupError:
         test.log("System Ready screen did not appear. cGUI proceeded directly to login.")
-        snooze(5)
 
     label = waitForObject(
     names.polaris_cGUI_UserLoginLabel,
@@ -166,7 +165,7 @@ def cgui_login():
 def verify_cgui_post_login():
     cgui_login()
     
-    main_label = waitForObject(names.polaris_cGUI_Main_MyLabel)
+    main_label = waitForObject(names.polaris_cGUI_Main_MyLabel, GUI_STATE_TIMEOUT_MS)
 
     test.compare(
         main_label.text,
@@ -199,7 +198,8 @@ def verify_cart_case_setup():
     cart_gui_case_setup()
     snooze(1)
     ready_label = waitForObject(
-        names.system_is_ready_for_Draping_MyLabel, 10000
+        names.system_is_ready_for_Draping_MyLabel,
+        GUI_STATE_TIMEOUT_MS
     )
 
     test.compare(
@@ -210,7 +210,7 @@ def verify_cart_case_setup():
 
 def agui_case_setup_verify():
     case_label = waitForObject(
-        names.polaris_aGUI_Case_123_MyLabel, 1000
+        names.polaris_aGUI_Case_123_MyLabel, GUI_STATE_TIMEOUT_MS
     )
     test.compare(
         case_label.text,
@@ -219,7 +219,7 @@ def agui_case_setup_verify():
     )
 
     laterality_label = waitForObject(
-        names.polaris_aGUI_Eye_Laterality_OS_MyLabel, 1000
+        names.polaris_aGUI_Eye_Laterality_OS_MyLabel, GUI_STATE_TIMEOUT_MS
     )
     test.compare(
         laterality_label.text,
@@ -228,7 +228,7 @@ def agui_case_setup_verify():
     )
 
     surgeon_label = waitForObject(
-        names.polaris_aGUI_Dr_Smith_MyLabel, 1000
+        names.polaris_aGUI_Dr_Smith_MyLabel, GUI_STATE_TIMEOUT_MS
     )
     test.compare(
         surgeon_label.text,
@@ -237,7 +237,7 @@ def agui_case_setup_verify():
     )
 
     draping_instructions = waitForObject(
-        names.polaris_aGUI_System_is_ready_for_draping_Before_scrubbing_in_please_complete_the_following_MyLabel, 1000
+        names.polaris_aGUI_System_is_ready_for_draping_Before_scrubbing_in_please_complete_the_following_MyLabel, GUI_STATE_TIMEOUT_MS
     )
     test.compare(
         draping_instructions.text,
@@ -248,34 +248,6 @@ def agui_case_setup_verify():
         "Verify Assistant GUI displays the ready-for-draping instructions",
     )
 
-def sgui_case_setup_verify():
-    case_label = waitForObject(
-        names.case_123_MyLabel
-    )
-    test.compare(
-        case_label.text,
-        "Case: 123",
-        "Verify Surgeon GUI displays the correct case ID",
-    )
-
-    laterality_label = waitForObject(
-        names.eye_Laterality_OS_MyLabel
-    )
-    test.compare(
-        laterality_label.text,
-        "Eye Laterality: OS",
-        "Verify Surgeon GUI displays the correct eye laterality",
-    )
-
-    surgeon_dropdown = waitForObject(
-        names.surgeonDropdown_ComboBox
-    )
-
-    test.compare(
-        surgeon_dropdown.currentText,
-        "Dr. Smith",
-        "Verify Surgeon GUI displays the correct selected surgeon",
-    )
 
 # Define this after all handler functions exist.
 STEP_HANDLERS = {
@@ -286,9 +258,8 @@ STEP_HANDLERS = {
     "cgui_prelogin_verify": verify_cgui_prelogin,
     "cart_gui_login": verify_cgui_post_login,
     "agui_post_login": verify_agui_post_login,
-    "verify_cart_case_setup": cart_gui_case_setup,
+    "verify_cart_case_setup": verify_cart_case_setup,
     "agui_case_setup_verify": agui_case_setup_verify,
-    "sgui_case_setup_verify": sgui_case_setup_verify,
 
 
 }
@@ -296,6 +267,8 @@ STEP_HANDLERS = {
 
 def main():
     screenshot = None
+    testSettings.throwOnFailure = True
+
 
     try:
         test.log(f"Attaching to {TARGET_AUT}")

@@ -6,10 +6,11 @@ import paramiko
 import logging
 
 
-from config import (
+from config import SQUISHRUNNER
+from run_context import (
     LOG_PATH,
     SCREENSHOT_DIR,
-    SQUISHRUNNER,
+    unique_artifact_name,
 )
 from utils import timestamp
 
@@ -32,8 +33,8 @@ from utils import timestamp
 def run_squish_step(test_case, step, application,):
     logging.info(f"Running {step['step_id']} on {step['gui']}: {step['instruction']}")
     
-    os.makedirs(
-        SCREENSHOT_DIR,
+    SCREENSHOT_DIR.mkdir(
+        parents=True,
         exist_ok=True,
     )
 
@@ -51,7 +52,7 @@ def run_squish_step(test_case, step, application,):
         environment.update(
             {
                 "RESULT_PATH": result_path,
-                "SCREENSHOT_DIR": SCREENSHOT_DIR,
+                "SCREENSHOT_DIR": str(SCREENSHOT_DIR),
 
                 "TEST_CASE_ID": test_case["id"],
                 "TEST_CASE_NAME": test_case["name"],
@@ -80,9 +81,25 @@ def run_squish_step(test_case, step, application,):
                     "",
                 ),
 
-                "SCREENSHOT_NAME": step.get(
-                    "screenshot",
-                    "",
+                "SCREENSHOT_NAME": (
+                    unique_artifact_name(
+                        test_case["id"],
+                        suffix=(
+                            "_"
+                            + str(
+                                step.get(
+                                    "step_id",
+                                    "step",
+                                )
+                            ).replace(
+                                " ",
+                                "_",
+                            )
+                        ),
+                        extension="png",
+                    )
+                    if step.get("screenshot")
+                    else""
                 ),
             }
         )

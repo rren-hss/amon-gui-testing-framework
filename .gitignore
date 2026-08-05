@@ -1,34 +1,10 @@
-# Python
 __pycache__/
-*.py[cod]
-.pytest_cache/
+*.pyc
+test_outputs/
+*.log
 .venv/
 venv/
-
-# Generated test output
-results/
-reports/
-screenshots/
-logs/
-output/
-artifacts/
-*.log
-
-# Local configuration and secrets
-.env
-.env.*
-*.pem
-*.key
-
-# IDE/editor files
-.vscode/
 .idea/
-*.swp
-*~
-
-# OS files
-.DS_Store
-Thumbs.db
-
-#Attachments
+.vscode/
+*.zip
 **/attachments/

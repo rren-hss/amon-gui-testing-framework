@@ -8,7 +8,7 @@ SCREENSHOT_RENDER_DELAY_SECONDS = 0.5
 
 RESULT_PATH = os.environ["RESULT_PATH"]
 SCREENSHOT_DIR = os.environ["SCREENSHOT_DIR"]
-TARGET_AUT = os.environ.get("TARGET_AUT", "appSurgeon")
+TARGET_AUT = os.environ.get("TARGET_AUT", "surgeon_gui").strip()
 SQUISH_STEP = os.environ["SQUISH_STEP"]
 STEP_ID = os.environ["STEP_ID"]
 STEP_NAME = os.environ.get("STEP_NAME", SQUISH_STEP)
@@ -103,6 +103,36 @@ def verify_sgui_post_login():
         "Verify sGUI Surgeon label in the top bar is visible",
     )
 
+def sgui_case_setup_verify():
+    case_label = waitForObject(
+        names.case_123_MyLabel,
+        GUI_STATE_TIMEOUT_MS,
+    )
+    test.compare(
+        case_label.text,
+        "Case: 123",
+        "Verify Surgeon GUI displays the correct case ID",
+    )
+
+    laterality_label = waitForObject(
+        names.eye_Laterality_OS_MyLabel,
+        GUI_STATE_TIMEOUT_MS,
+    )
+    test.compare(
+        laterality_label.text,
+        "Eye Laterality: OS",
+        "Verify Surgeon GUI displays the correct eye laterality",
+    )
+
+    surgeon_dropdown = waitForObject(
+        names.surgeonDropdown_ComboBox,
+        GUI_STATE_TIMEOUT_MS,
+    )
+    test.compare(
+        surgeon_dropdown.currentText,
+        "Dr. Smith",
+        "Verify Surgeon GUI displays the correct selected surgeon",
+    )
 
 
 # Define this after all handler functions exist.
@@ -111,16 +141,21 @@ STEP_HANDLERS = {
     "capture_current_screen": capture_current_screen,
     "sgui_prelogin_verify": verify_sgui_prelogin,
     "sgui_post_login": verify_sgui_post_login,
+    "sgui_case_setup_verify": sgui_case_setup_verify
 
 }
 
 
 def main():
     screenshot = None
+    testSettings.throwOnFailure = True
+
 
     try:
         test.log(f"Attaching to {TARGET_AUT}")
 
+        test.log(f"RUNNING FILE: {__file__}")
+        test.log(f"TARGET_AUT: {TARGET_AUT}")
         attachToApplication(TARGET_AUT)
 
         handler = STEP_HANDLERS.get(SQUISH_STEP)
