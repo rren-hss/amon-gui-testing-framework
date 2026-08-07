@@ -408,7 +408,7 @@ def _result_rows_html(
             f"<b>{html.escape(status)}</b>"
             f"</td>"
             f"<td>{screenshot_html}</td>"
-            f'<td class="text-content">'
+            f'<td class="text-content notes-cell" contenteditable="false">'
             f"{html.escape(notes)}"
             f"</td>"
             f"<td>{html.escape(timestamp_value)}</td>"
@@ -536,328 +536,523 @@ def generate_html_report(
     )
 
     report_html = f"""
-<!DOCTYPE html>
-<html lang="en">
+    <!DOCTYPE html>
+    <html lang="en">
 
-<head>
-    <meta charset="UTF-8">
+    <head>
+        <meta charset="UTF-8">
 
-    <meta
-        name="viewport"
-        content="width=device-width, initial-scale=1.0"
-    >
+        <meta
+            name="viewport"
+            content="width=device-width, initial-scale=1.0"
+        >
 
-    <title>{html.escape(test_id)} Test Report</title>
+        <title>{html.escape(test_id)} Test Report</title>
 
-    <style>
-        body {{
-            font-family: Arial, sans-serif;
-            margin: 32px;
-            color: #222;
-            background: #fff;
-        }}
-
-        h1 {{
-            margin-bottom: 6px;
-        }}
-
-        .test-title {{
-            margin-top: 0;
-            color: #555;
-            font-size: 18px;
-            font-weight: normal;
-        }}
-
-        table {{
-            border-collapse: collapse;
-            width: 100%;
-            table-layout: fixed;
-        }}
-
-        th,
-        td {{
-            border: 1px solid #ccc;
-            padding: 10px;
-            vertical-align: top;
-            overflow-wrap: anywhere;
-            text-align: left;
-        }}
-
-        th {{
-            background: #a6a6a6;
-        }}
-
-        img {{
-            max-width: 180px;
-            height: auto;
-            border: 1px solid #bbb;
-        }}
-
-        .summary {{
-            border: 1px solid #ccc;
-            background: #f7f7f7;
-            padding: 16px;
-            margin-bottom: 20px;
-        }}
-
-        .summary-grid {{
-            display: grid;
-            grid-template-columns:
-                repeat(auto-fit, minmax(150px, 1fr));
-            gap: 10px;
-            margin-top: 12px;
-        }}
-
-        .summary-item {{
-            background: #fff;
-            border: 1px solid #ddd;
-            padding: 10px;
-        }}
-
-        .summary-label {{
-            display: block;
-            color: #555;
-            font-size: 12px;
-            font-weight: bold;
-            text-transform: uppercase;
-        }}
-
-        .summary-value {{
-            display: block;
-            margin-top: 4px;
-            font-size: 17px;
-        }}
-
-        .overall-status {{
-            display: inline-block;
-            padding: 6px 10px;
-            border-radius: 4px;
-            font-weight: bold;
-        }}
-
-        .overall-status.pass {{
-            background: #d9f2d9;
-            color: #1a7a1a;
-        }}
-
-        .overall-status.fail {{
-            background: #fbd6d6;
-            color: #b30000;
-        }}
-
-        .overall-status.aborted {{
-            background: #fff1c7;
-            color: #9a6700;
-        }}
-
-        .overall-status.warn {{
-            background: #fff4cc;
-            color: #806000;
-        }}
-
-        .status-cell.pass {{
-            background: #d9f2d9;
-            color: #1a7a1a;
-        }}
-
-        .status-cell.fail {{
-            background: #fbd6d6;
-            color: #b30000;
-        }}
-
-        .status-cell.aborted {{
-            background: #fff1c7;
-            color: #9a6700;
-        }}
-
-        .status-cell.warn {{
-            background: #fff4cc;
-            color: #806000;
-        }}
-
-        .text-content {{
-            white-space: pre-wrap;
-            text-align: left;
-        }}
-
-        .terminal-output {{
-            white-space: pre-wrap;
-            font-family:
-                "Courier New",
-                Courier,
-                monospace;
-            font-size: 11px;
-            line-height: 1.35;
-            text-align: left;
-            padding: 8px;
-        }}
-
-        .report-path {{
-            margin-top: 15px;
-            color: #555;
-            font-size: 13px;
-            overflow-wrap: anywhere;
-        }}
-
-        .test-metadata {{
-            border: 1px solid #ccc;
-            background: #fff;
-            padding: 20px;
-            margin-bottom: 20px;
-        }}
-
-        .test-metadata h2 {{
-            margin-top: 0;
-            margin-bottom: 16px;
-        }}
-
-        .metadata-grid {{
-            display: grid;
-            grid-template-columns:
-                repeat(auto-fit, minmax(220px, 1fr));
-            gap: 12px;
-        }}
-
-        .metadata-item {{
-            background: #f7f7f7;
-            border: 1px solid #ddd;
-            padding: 12px;
-        }}
-
-        .metadata-label {{
-            display: block;
-            margin-bottom: 6px;
-            color: #555;
-            font-size: 12px;
-            font-weight: bold;
-            text-transform: uppercase;
-        }}
-
-        .metadata-value {{
-            display: block;
-            font-size: 15px;
-        }}
-
-        .metadata-status {{
-            display: block;
-            margin-top: 5px;
-            color: #666;
-            font-size: 12px;
-        }}
-
-        @media print {{
+        <style>
             body {{
-                margin: 10px;
+                font-family: Arial, sans-serif;
+                margin: 32px;
+                color: #222;
+                background: #fff;
             }}
 
-            .summary,
+            h1 {{
+                margin-bottom: 6px;
+            }}
+
+            .test-title {{
+                margin-top: 0;
+                color: #555;
+                font-size: 18px;
+                font-weight: normal;
+            }}
+
+            table {{
+                border-collapse: collapse;
+                width: 100%;
+                table-layout: fixed;
+            }}
+
+            th,
+            td {{
+                border: 1px solid #ccc;
+                padding: 10px;
+                vertical-align: top;
+                overflow-wrap: anywhere;
+                text-align: left;
+            }}
+
+            th {{
+                background: #a6a6a6;
+            }}
+
+            img {{
+                max-width: 180px;
+                height: auto;
+                border: 1px solid #bbb;
+            }}
+
+            button {{
+                padding: 8px 14px;
+                margin-right: 8px;
+                cursor: pointer;
+                border: 1px solid #aaa;
+                border-radius: 4px;
+                background: #f5f5f5;
+            }}
+
+            button:hover {{
+                background: #e8e8e8;
+            }}
+
+            .summary {{
+                border: 1px solid #ccc;
+                background: #f7f7f7;
+                padding: 16px;
+                margin-bottom: 20px;
+            }}
+
+            .summary-grid {{
+                display: grid;
+                grid-template-columns:
+                    repeat(auto-fit, minmax(150px, 1fr));
+                gap: 10px;
+                margin-top: 12px;
+            }}
+
+            .summary-item {{
+                background: #fff;
+                border: 1px solid #ddd;
+                padding: 10px;
+            }}
+
+            .summary-label {{
+                display: block;
+                color: #555;
+                font-size: 12px;
+                font-weight: bold;
+                text-transform: uppercase;
+            }}
+
+            .summary-value {{
+                display: block;
+                margin-top: 4px;
+                font-size: 17px;
+            }}
+
+            .overall-status {{
+                display: inline-block;
+                padding: 6px 10px;
+                border-radius: 4px;
+                font-weight: bold;
+            }}
+
+            .overall-status.pass {{
+                background: #d9f2d9;
+                color: #1a7a1a;
+            }}
+
+            .overall-status.fail {{
+                background: #fbd6d6;
+                color: #b30000;
+            }}
+
+            .overall-status.aborted {{
+                background: #fff1c7;
+                color: #9a6700;
+            }}
+
+            .overall-status.warn {{
+                background: #fff4cc;
+                color: #806000;
+            }}
+
+            .status-cell.pass {{
+                background: #d9f2d9;
+                color: #1a7a1a;
+            }}
+
+            .status-cell.fail {{
+                background: #fbd6d6;
+                color: #b30000;
+            }}
+
+            .status-cell.aborted {{
+                background: #fff1c7;
+                color: #9a6700;
+            }}
+
+            .status-cell.warn {{
+                background: #fff4cc;
+                color: #806000;
+            }}
+
+            .text-content {{
+                white-space: pre-wrap;
+                text-align: left;
+            }}
+
+            .notes-cell[contenteditable="true"] {{
+                background: #fffbe6;
+                outline: 2px solid #888;
+                cursor: text;
+            }}
+
+            .terminal-output {{
+                white-space: pre-wrap;
+                font-family:
+                    "Courier New",
+                    Courier,
+                    monospace;
+                font-size: 11px;
+                line-height: 1.35;
+                text-align: left;
+                padding: 8px;
+            }}
+
+            .report-path {{
+                margin-top: 15px;
+                color: #555;
+                font-size: 13px;
+                overflow-wrap: anywhere;
+            }}
+
             .test-metadata {{
-                break-inside: avoid;
+                border: 1px solid #ccc;
+                background: #fff;
+                padding: 20px;
+                margin-bottom: 20px;
             }}
-        }}
-    </style>
-</head>
 
-<body>
+            .test-metadata h2 {{
+                margin-top: 0;
+                margin-bottom: 16px;
+            }}
 
-    <h1>Test Report: {html.escape(test_id)}</h1>
+            .metadata-grid {{
+                display: grid;
+                grid-template-columns:
+                    repeat(auto-fit, minmax(220px, 1fr));
+                gap: 12px;
+            }}
 
-    <p class="test-title">{html.escape(test_name)}</p>
+            .metadata-item {{
+                background: #f7f7f7;
+                border: 1px solid #ddd;
+                padding: 12px;
+            }}
 
-    {metadata_section}
+            .metadata-label {{
+                display: block;
+                margin-bottom: 6px;
+                color: #555;
+                font-size: 12px;
+                font-weight: bold;
+                text-transform: uppercase;
+            }}
 
-    <section class="summary">
-        <p>
-            <b>Generated:</b>
-            {html.escape(generated_time)}
+            .metadata-value {{
+                display: block;
+                font-size: 15px;
+            }}
+
+            .metadata-status {{
+                display: block;
+                margin-top: 5px;
+                color: #666;
+                font-size: 12px;
+            }}
+
+            @media print {{
+                body {{
+                    margin: 10px;
+                }}
+
+                .summary,
+                .test-metadata {{
+                    break-inside: avoid;
+                }}
+
+                .report-controls {{
+                    display: none;
+                }}
+            }}
+        </style>
+    </head>
+
+    <body>
+
+        <h1>Test Report: {html.escape(test_id)}</h1>
+
+        <p class="test-title">
+            {html.escape(test_name)}
         </p>
 
-        <p>
-            <b>Overall Result:</b>
+        {metadata_section}
 
-            <span class="overall-status {overall_class}">
-                {html.escape(overall_result)}
-            </span>
-        </p>
+        <section class="summary">
 
-        <div class="summary-grid">
-            <div class="summary-item">
-                <span class="summary-label">Total Steps</span>
-                <span class="summary-value">{total}</span>
-            </div>
+            <p>
+                <b>Generated:</b>
+                {html.escape(generated_time)}
+            </p>
 
-            <div class="summary-item">
-                <span class="summary-label">Passed</span>
-                <span class="summary-value">{passed}</span>
-            </div>
+            <p>
+                <b>Overall Result:</b>
 
-            <div class="summary-item">
-                <span class="summary-label">Failed</span>
-                <span class="summary-value">{failed}</span>
-            </div>
-
-            <div class="summary-item">
-                <span class="summary-label">Warnings</span>
-                <span class="summary-value">{warnings}</span>
-            </div>
-
-            <div class="summary-item">
-                <span class="summary-label">Aborted</span>
-                <span class="summary-value">{aborted}</span>
-            </div>
-
-            <div class="summary-item">
-                <span class="summary-label">Automated Steps</span>
-                <span class="summary-value">{automated_count}</span>
-            </div>
-
-            <div class="summary-item">
-                <span class="summary-label">Manual Steps</span>
-                <span class="summary-value">{manual_count}</span>
-            </div>
-
-            <div class="summary-item">
-                <span class="summary-label">
-                    Terminal / SSH Steps
+                <span class="overall-status {overall_class}">
+                    {html.escape(overall_result)}
                 </span>
+            </p>
 
-                <span class="summary-value">{terminal_count}</span>
+            <div class="summary-grid">
+
+                <div class="summary-item">
+                    <span class="summary-label">
+                        Total Steps
+                    </span>
+
+                    <span class="summary-value">
+                        {total}
+                    </span>
+                </div>
+
+                <div class="summary-item">
+                    <span class="summary-label">
+                        Passed
+                    </span>
+
+                    <span class="summary-value">
+                        {passed}
+                    </span>
+                </div>
+
+                <div class="summary-item">
+                    <span class="summary-label">
+                        Failed
+                    </span>
+
+                    <span class="summary-value">
+                        {failed}
+                    </span>
+                </div>
+
+                <div class="summary-item">
+                    <span class="summary-label">
+                        Warnings
+                    </span>
+
+                    <span class="summary-value">
+                        {warnings}
+                    </span>
+                </div>
+
+                <div class="summary-item">
+                    <span class="summary-label">
+                        Aborted
+                    </span>
+
+                    <span class="summary-value">
+                        {aborted}
+                    </span>
+                </div>
+
+                <div class="summary-item">
+                    <span class="summary-label">
+                        Automated Steps
+                    </span>
+
+                    <span class="summary-value">
+                        {automated_count}
+                    </span>
+                </div>
+
+                <div class="summary-item">
+                    <span class="summary-label">
+                        Manual Steps
+                    </span>
+
+                    <span class="summary-value">
+                        {manual_count}
+                    </span>
+                </div>
+
+                <div class="summary-item">
+                    <span class="summary-label">
+                        Terminal / SSH Steps
+                    </span>
+
+                    <span class="summary-value">
+                        {terminal_count}
+                    </span>
+                </div>
+
             </div>
+
+            <p class="report-path">
+                <b>Report Path:</b>
+                {safe_report_path}
+            </p>
+
+        </section>
+
+        <div
+            class="report-controls"
+            style="margin-bottom: 15px;"
+        >
+            <button
+                id="editNotesButton"
+                onclick="toggleNotes()"
+            >
+                Edit Notes
+            </button>
+
+            <button
+                onclick="saveReport()"
+            >
+                Save Updated Report
+            </button>
         </div>
 
-        <p class="report-path">
-            <b>Report Path:</b>
-            {safe_report_path}
-        </p>
-    </section>
+        <table>
 
-    <table>
-        <thead>
-            <tr>
-                <th style="width: 7%;">Test Case</th>
-                <th style="width: 8%;">GUI / Computer</th>
-                <th style="width: 7%;">Type</th>
-                <th style="width: 6%;">Step</th>
-                <th style="width: 10%;">Instruction</th>
-                <th style="width: 10%;">Expected Result</th>
-                <th style="width: 28%;">
-                    Actual / Terminal Output
-                </th>
-                <th style="width: 7%;">Status</th>
-                <th style="width: 8%;">Screenshot</th>
-                <th style="width: 7%;">Notes</th>
-                <th style="width: 10%;">Timestamp</th>
-            </tr>
-        </thead>
+            <thead>
+                <tr>
+                    <th style="width: 7%;">
+                        Test Case
+                    </th>
 
-        <tbody>
-            {rows_html}
-        </tbody>
-    </table>
+                    <th style="width: 8%;">
+                        GUI / Computer
+                    </th>
 
-</body>
-</html>
-"""
+                    <th style="width: 7%;">
+                        Type
+                    </th>
+
+                    <th style="width: 6%;">
+                        Step
+                    </th>
+
+                    <th style="width: 10%;">
+                        Instruction
+                    </th>
+
+                    <th style="width: 10%;">
+                        Expected Result
+                    </th>
+
+                    <th style="width: 28%;">
+                        Actual / Terminal Output
+                    </th>
+
+                    <th style="width: 7%;">
+                        Status
+                    </th>
+
+                    <th style="width: 8%;">
+                        Screenshot
+                    </th>
+
+                    <th style="width: 7%;">
+                        Notes
+                    </th>
+
+                    <th style="width: 10%;">
+                        Timestamp
+                    </th>
+                </tr>
+            </thead>
+
+            <tbody>
+                {rows_html}
+            </tbody>
+
+        </table>
+
+        <script>
+            let editingNotes = false;
+
+            function toggleNotes() {{
+                editingNotes = !editingNotes;
+
+                const editButton =
+                    document.getElementById(
+                        "editNotesButton"
+                    );
+
+                document
+                    .querySelectorAll(".notes-cell")
+                    .forEach(cell => {{
+                        cell.contentEditable =
+                            editingNotes
+                                ? "true"
+                                : "false";
+                    }});
+
+                if (editingNotes) {{
+                    editButton.textContent =
+                        "Done Editing";
+                }} else {{
+                    editButton.textContent =
+                        "Edit Notes";
+                }}
+            }}
+
+            function saveReport() {{
+                editingNotes = false;
+
+                document
+                    .querySelectorAll(".notes-cell")
+                    .forEach(cell => {{
+                        cell.contentEditable =
+                            "false";
+                    }});
+
+                const editButton =
+                    document.getElementById(
+                        "editNotesButton"
+                    );
+
+                editButton.textContent =
+                    "Edit Notes";
+
+                const htmlContent =
+                    "<!DOCTYPE html>\\n" +
+                    document.documentElement.outerHTML;
+
+                const blob =
+                    new Blob(
+                        [htmlContent],
+                        {{
+                            type: "text/html"
+                        }}
+                    );
+
+                const url =
+                    URL.createObjectURL(blob);
+
+                const link =
+                    document.createElement("a");
+
+                link.href = url;
+
+                link.download =
+                    document.title.replace(
+                        /[^a-zA-Z0-9-_]/g,
+                        "_"
+                    ) + ".html";
+
+                link.click();
+
+                URL.revokeObjectURL(url);
+            }}
+        </script>
+
+    </body>
+    </html>
+    """
 
     with report_path.open(
         "w",

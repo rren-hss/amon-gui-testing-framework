@@ -101,7 +101,8 @@ def verify_assistant_gui_window():
 #Prelogin status verification
 def verify_agui_prelogin():
     awaiting_login_label = waitForObject(
-        names.polaris_aGUI_AwaitingLoginLabel
+        names.polaris_aGUI_AwaitingLoginLabel,
+        GUI_STATE_TIMEOUT_MS
     )
     test.compare(
         awaiting_login_label.text,
@@ -181,8 +182,9 @@ def verify_agui_post_login():
         "Verify aGUI Surgeon label in top bar is visible after login",
     )
 
-#Case setup
-
+# --------------------------------------------------
+# Verify Surgical Case Setup & Initialization
+# --------------------------------------------------
 def cart_gui_case_setup():
     mouseClick(waitForObject(names.case_Setup_Text))
     mouseClick(waitForObject(names.caseIdInput_TextField), 73, 30, Qt.LeftButton)
@@ -193,18 +195,17 @@ def cart_gui_case_setup():
     mouseClick(waitForObject(names.move_to_Draping_Text))
     test.log("Entered Case Setup details ")
 
-
 def verify_cart_case_setup():
     cart_gui_case_setup()
     snooze(1)
     ready_label = waitForObject(
-        names.system_is_ready_for_Draping_MyLabel,
+        names.the_system_is_in_the_Draping_position_Before_scrubbing_in_complete_the_following_steps_MyLabel,
         GUI_STATE_TIMEOUT_MS
     )
-
+    
     test.compare(
         ready_label.text,
-        "System is ready for Draping",
+        "The system is in the Draping position. Before scrubbing in, complete the following steps:",
         "Verify Cart GUI indicates the system is ready for draping",
     )
 
@@ -237,20 +238,86 @@ def agui_case_setup_verify():
     )
 
     draping_instructions = waitForObject(
-        names.polaris_aGUI_System_is_ready_for_draping_Before_scrubbing_in_please_complete_the_following_MyLabel, GUI_STATE_TIMEOUT_MS
+        names.polaris_aGUI_DrapingInstructions, GUI_STATE_TIMEOUT_MS
+    )
+
+
+# --------------------------------------------------
+# Surgical Case Flow Verification Test
+# --------------------------------------------------
+
+def agui_init_case_button():
+    initialize_case_button = waitForObject(
+        names.polaris_aGUI_Initialize_Case_Text,
+        GUI_STATE_TIMEOUT_MS
+    )
+
+def cgui_ready_draping():
+    ready_label = waitForObject(
+            names.the_system_is_in_the_Draping_position_Before_scrubbing_in_complete_the_following_steps_MyLabel,
+            GUI_STATE_TIMEOUT_MS
+        )
+
+def agui_click_ini_case():
+    mouseClick(waitForObject(names.polaris_aGUI_Initialize_Case_Text))
+
+def verify_cgui_waiting_for_surgeon():
+    label = waitForObject(
+        names.ready_for_Surgery_Waiting_for_surgeon_to_start_MyLabel,
+        GUI_STATE_TIMEOUT_MS
     )
     test.compare(
-        draping_instructions.text,
-        (
-            "System is ready for draping. Before scrubbing in, "
-            "please complete the following:"
-        ),
-        "Verify Assistant GUI displays the ready-for-draping instructions",
+        label.text,
+        "Ready for Surgery. Waiting for surgeon to start.",
+        "Verify that cgui says that controlled is passed on to surgeon"
+    )
+
+def agui_main_screen():
+    label = waitForObject(
+        names.polaris_aGUI_Assistant_Active_MyLabel,
+        GUI_STATE_TIMEOUT_MS
+    )
+
+def cgui_active_case():
+    label = waitForObject(
+        names.case_is_Active_MyLabel,
+        GUI_STATE_TIMEOUT_MS
+    )
+
+    label_2 = waitForObject(
+        names.control_assigned_to_Surgeon_and_Assistant_GUIs_MyLabel,
+        GUI_STATE_TIMEOUT_MS
+    )
+
+def agui_confirmations_side_inc():
+    mouseClick(waitForObject(names.polaris_aGUI_Confirm_Text_2))
+    mouseClick(waitForObject(names.polaris_aGUI_Confirm_Text))
+
+    surgeon_active_label = waitForObject(
+        names.polaris_aGUI_Surgeon_Active_MyLabel,
+        GUI_STATE_TIMEOUT_MS
+    )
+
+def verify_agui_viscoat_step():
+    viscoat_rectangle = waitForObject(names.viscoat_Rectangle)
+
+    test.verify(
+        viscoat_rectangle.visible,
+        "Verify Viscoat is displayed as a Rectangle"
+    )
+
+    confirm_text = waitForObject(names.polaris_aGUI_Confirm_Text)
+    confirm_button = confirm_text.parent
+
+    test.verify(
+        confirm_button.enabled == True,
+        "Verify Confirm button is pressable"
     )
 
 
 # Define this after all handler functions exist.
 STEP_HANDLERS = {
+
     "cart_gui_window": verify_cart_gui_window,
     "assistant_gui_window": verify_assistant_gui_window,
     "capture_current_screen": capture_current_screen,
@@ -260,34 +327,42 @@ STEP_HANDLERS = {
     "agui_post_login": verify_agui_post_login,
     "verify_cart_case_setup": verify_cart_case_setup,
     "agui_case_setup_verify": agui_case_setup_verify,
+    "verify_agui_ini_case": agui_init_case_button,
+    "verify_cgui_draping_ready": cgui_ready_draping,
+    "click_agui_ini_case": agui_click_ini_case,
+    "verify_cgui_surgeon_control": verify_cgui_waiting_for_surgeon,
+    
+    "verify_agui_main_screen": agui_main_screen,
+    "verify_cgui_active_case": cgui_active_case,
+    "agui_confirmations_side_inc": agui_confirmations_side_inc,
+    "verify_agui_viscoat_step": verify_agui_viscoat_step
 
+    
 
 }
 
 
+
+
 def main():
     screenshot = None
+    app_context = None
     testSettings.throwOnFailure = True
-
 
     try:
         test.log(f"Attaching to {TARGET_AUT}")
-
-        attachToApplication(TARGET_AUT)
+        app_context = attachToApplication(TARGET_AUT)
 
         handler = STEP_HANDLERS.get(SQUISH_STEP)
 
         if handler is None:
             supported_steps = ", ".join(sorted(STEP_HANDLERS))
-
             raise RuntimeError(
-                "Unknown Squish step "
-                f"'{SQUISH_STEP}'. "
+                f"Unknown Squish step '{SQUISH_STEP}'. "
                 f"Supported steps: {supported_steps}"
             )
 
         test.log(f"Executing Squish step: {SQUISH_STEP}")
-
         handler()
 
         screenshot = capture_screenshot()
@@ -310,8 +385,6 @@ def main():
                 f"Could not capture a failure screenshot: {screenshot_error}"
             )
 
-        # Always try to create result.json, even when
-        # attachment or screenshot capture fails.
         try:
             write_result(
                 status="FAIL",
@@ -322,3 +395,14 @@ def main():
             test.warning(f"Could not write the step result: {result_error}")
 
         test.fail(str(error))
+
+    finally:
+        if app_context is not None:
+            try:
+                app_context.detach()
+                test.log(f"Detached from {TARGET_AUT}")
+            except Exception as detach_error:
+                test.warning(
+                    f"Could not detach from {TARGET_AUT}: {detach_error}"
+                )
+

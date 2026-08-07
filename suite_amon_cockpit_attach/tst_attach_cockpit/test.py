@@ -135,14 +135,51 @@ def sgui_case_setup_verify():
     )
 
 
+def verify_start_surgery_popup():
+    start_surgery_button = waitForObject(
+        names.start_Surgery_Text,
+        GUI_STATE_TIMEOUT_MS
+    )
+    test.compare(
+        start_surgery_button.text,
+        "Start Surgery",
+        "Verify sGUI show Start Surgery button"
+    )
+
+def click_start_surgery():
+    mouseClick(waitForObject(names.start_Surgery_Text))
+
+
+def verify_docking_confirmation():
+    click_start_surgery()
+    label = waitForObject(
+        names.apply_Docking_to_the_operative_eye_MyLabel,
+        GUI_STATE_TIMEOUT_MS,
+    )
+
+def sgui_docking_confirm():
+    mouseClick(waitForObject(names.confirm_Text)) 
+
+def verify_step_switch_viscoat():
+    mouseDrag(waitForObject(names.stepList_Viscoat_ProcedureStepButton), 121, 26, 2, 2, Qt.NoModifier, Qt.LeftButton)
+    obj = waitForObject(names.viscoat_Rectangle, GUI_STATE_TIMEOUT_MS)
+    test.verify(
+        obj.visible,
+        "Verify Viscoat is selected -- not a button element"
+    )
+
+
 # Define this after all handler functions exist.
 STEP_HANDLERS = {
     "surgeon_gui_window": verify_surgeon_window,
     "capture_current_screen": capture_current_screen,
     "sgui_prelogin_verify": verify_sgui_prelogin,
     "sgui_post_login": verify_sgui_post_login,
-    "sgui_case_setup_verify": sgui_case_setup_verify
-
+    "sgui_case_setup_verify": sgui_case_setup_verify,
+    "verify_start_surgery_button": verify_start_surgery_popup,
+    "click_sgui_start_surgery": verify_docking_confirmation,
+    "verify_sgui_enabled": sgui_docking_confirm,
+    "verify_step_switch_viscoat": verify_step_switch_viscoat
 }
 
 

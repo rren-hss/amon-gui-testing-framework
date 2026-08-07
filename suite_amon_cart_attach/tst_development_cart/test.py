@@ -6,7 +6,6 @@ def main():
     attachToApplication("cart_gui")
     attachToApplication("assistant_gui")
 
-
     test.breakpoint()
     
     
