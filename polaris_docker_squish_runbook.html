@@ -1,0 +1,771 @@
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml" lang xml:lang>
+<head>
+  <meta charset="utf-8" />
+  <meta name="generator" content="pandoc" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes" />
+  <title>Polaris Docker + Squish Runbook</title>
+  <style>
+html {
+color: #1a1a1a;
+background-color: #fdfdfd;
+}
+body {
+margin: 0 auto;
+max-width: 36em;
+padding-left: 50px;
+padding-right: 50px;
+padding-top: 50px;
+padding-bottom: 50px;
+hyphens: auto;
+overflow-wrap: break-word;
+text-rendering: optimizeLegibility;
+font-kerning: normal;
+}
+@media (max-width: 600px) {
+body {
+font-size: 0.9em;
+padding: 12px;
+}
+h1 {
+font-size: 1.8em;
+}
+}
+@media print {
+html {
+background-color: white;
+}
+body {
+background-color: transparent;
+color: black;
+font-size: 12pt;
+}
+p, h2, h3 {
+orphans: 3;
+widows: 3;
+}
+h2, h3, h4 {
+page-break-after: avoid;
+}
+}
+p {
+margin: 1em 0;
+}
+a {
+color: #1a1a1a;
+}
+a:visited {
+color: #1a1a1a;
+}
+img {
+max-width: 100%;
+}
+h1, h2, h3, h4, h5, h6 {
+margin-top: 1.4em;
+}
+h5, h6 {
+font-size: 1em;
+font-style: italic;
+}
+h6 {
+font-weight: normal;
+}
+ol, ul {
+padding-left: 1.7em;
+margin-top: 1em;
+}
+li > ol, li > ul {
+margin-top: 0;
+}
+blockquote {
+margin: 1em 0 1em 1.7em;
+padding-left: 1em;
+border-left: 2px solid #e6e6e6;
+color: #606060;
+}
+code {
+font-family: Menlo, Monaco, Consolas, 'Lucida Console', monospace;
+font-size: 85%;
+margin: 0;
+hyphens: manual;
+}
+pre {
+margin: 1em 0;
+overflow: auto;
+}
+pre code {
+padding: 0;
+overflow: visible;
+overflow-wrap: normal;
+}
+.sourceCode {
+background-color: transparent;
+overflow: visible;
+}
+hr {
+background-color: #1a1a1a;
+border: none;
+height: 1px;
+margin: 1em 0;
+}
+table {
+margin: 1em 0;
+border-collapse: collapse;
+width: 100%;
+overflow-x: auto;
+display: block;
+font-variant-numeric: lining-nums tabular-nums;
+}
+table caption {
+margin-bottom: 0.75em;
+}
+tbody {
+margin-top: 0.5em;
+border-top: 1px solid #1a1a1a;
+border-bottom: 1px solid #1a1a1a;
+}
+th {
+border-top: 1px solid #1a1a1a;
+padding: 0.25em 0.5em 0.25em 0.5em;
+}
+td {
+padding: 0.125em 0.5em 0.25em 0.5em;
+}
+header {
+margin-bottom: 4em;
+text-align: center;
+}
+#TOC li {
+list-style: none;
+}
+#TOC ul {
+padding-left: 1.3em;
+}
+#TOC > ul {
+padding-left: 0;
+}
+#TOC a:not(:hover) {
+text-decoration: none;
+}
+code{white-space: pre-wrap;}
+span.smallcaps{font-variant: small-caps;}
+div.columns{display: flex; gap: min(4vw, 1.5em);}
+div.column{flex: auto; overflow-x: auto;}
+div.hanging-indent{margin-left: 1.5em; text-indent: -1.5em;}
+
+ul.task-list[class]{list-style: none;}
+ul.task-list li input[type="checkbox"] {
+font-size: inherit;
+width: 0.8em;
+margin: 0 0.8em 0.2em -1.6em;
+vertical-align: middle;
+}
+.display.math{display: block; text-align: center; margin: 0.5rem auto;}
+
+pre > code.sourceCode { white-space: pre; position: relative; }
+pre > code.sourceCode > span { line-height: 1.25; }
+pre > code.sourceCode > span:empty { height: 1.2em; }
+.sourceCode { overflow: visible; }
+code.sourceCode > span { color: inherit; text-decoration: inherit; }
+div.sourceCode { margin: 1em 0; }
+pre.sourceCode { margin: 0; }
+@media screen {
+div.sourceCode { overflow: auto; }
+}
+@media print {
+pre > code.sourceCode { white-space: pre-wrap; }
+pre > code.sourceCode > span { text-indent: -5em; padding-left: 5em; }
+}
+pre.numberSource code
+{ counter-reset: source-line 0; }
+pre.numberSource code > span
+{ position: relative; left: -4em; counter-increment: source-line; }
+pre.numberSource code > span > a:first-child::before
+{ content: counter(source-line);
+position: relative; left: -1em; text-align: right; vertical-align: baseline;
+border: none; display: inline-block;
+-webkit-touch-callout: none; -webkit-user-select: none;
+-khtml-user-select: none; -moz-user-select: none;
+-ms-user-select: none; user-select: none;
+padding: 0 4px; width: 4em;
+color: #aaaaaa;
+}
+pre.numberSource { margin-left: 3em; border-left: 1px solid #aaaaaa; padding-left: 4px; }
+div.sourceCode
+{ }
+@media screen {
+pre > code.sourceCode > span > a:first-child::before { text-decoration: underline; }
+}
+code span.al { color: #ff0000; font-weight: bold; } 
+code span.an { color: #60a0b0; font-weight: bold; font-style: italic; } 
+code span.at { color: #7d9029; } 
+code span.bn { color: #40a070; } 
+code span.bu { color: #008000; } 
+code span.cf { color: #007020; font-weight: bold; } 
+code span.ch { color: #4070a0; } 
+code span.cn { color: #880000; } 
+code span.co { color: #60a0b0; font-style: italic; } 
+code span.cv { color: #60a0b0; font-weight: bold; font-style: italic; } 
+code span.do { color: #ba2121; font-style: italic; } 
+code span.dt { color: #902000; } 
+code span.dv { color: #40a070; } 
+code span.er { color: #ff0000; font-weight: bold; } 
+code span.ex { } 
+code span.fl { color: #40a070; } 
+code span.fu { color: #06287e; } 
+code span.im { color: #008000; font-weight: bold; } 
+code span.in { color: #60a0b0; font-weight: bold; font-style: italic; } 
+code span.kw { color: #007020; font-weight: bold; } 
+code span.op { color: #666666; } 
+code span.ot { color: #007020; } 
+code span.pp { color: #bc7a00; } 
+code span.sc { color: #4070a0; } 
+code span.ss { color: #bb6688; } 
+code span.st { color: #4070a0; } 
+code span.va { color: #19177c; } 
+code span.vs { color: #4070a0; } 
+code span.wa { color: #60a0b0; font-weight: bold; font-style: italic; } 
+</style>
+</head>
+<body>
+<header id="title-block-header">
+<h1 class="title">Polaris Docker + Squish Runbook</h1>
+</header>
+<nav id="TOC" role="doc-toc">
+<ul>
+<li><a href="#polaris-docker-squish-runbook" id="toc-polaris-docker-squish-runbook">Polaris Docker + Squish
+Runbook</a>
+<ul>
+<li><a href="#final-architecture" id="toc-final-architecture">1. Final
+architecture</a></li>
+<li><a href="#host-and-docker-preparation" id="toc-host-and-docker-preparation">2. Host and Docker
+preparation</a></li>
+<li><a href="#start-and-build-the-polaris-containers" id="toc-start-and-build-the-polaris-containers">3. Start and build the
+Polaris containers</a></li>
+<li><a href="#run-polaris-without-squish" id="toc-run-polaris-without-squish">4. Run Polaris without
+Squish</a></li>
+<li><a href="#install-the-correct-squish-build" id="toc-install-the-correct-squish-build">5. Install the correct Squish
+build</a></li>
+<li><a href="#mount-squish-and-publish-the-servers" id="toc-mount-squish-and-publish-the-servers">6. Mount Squish and
+publish the servers</a></li>
+<li><a href="#configure-allowed-hosts" id="toc-configure-allowed-hosts">7. Configure allowed hosts</a></li>
+<li><a href="#start-the-squish-servers" id="toc-start-the-squish-servers">8. Start the Squish Servers</a></li>
+<li><a href="#register-the-attachable-auts" id="toc-register-the-attachable-auts">9. Register the attachable
+AUTs</a></li>
+<li><a href="#launch-cart-and-assistant-through-startaut" id="toc-launch-cart-and-assistant-through-startaut">10. Launch Cart and
+Assistant through <code>startaut</code></a></li>
+<li><a href="#correct-runtime-order" id="toc-correct-runtime-order">11.
+Correct runtime order</a></li>
+<li><a href="#configure-squish-ide" id="toc-configure-squish-ide">12.
+Configure Squish IDE</a></li>
+<li><a href="#troubleshooting-reference" id="toc-troubleshooting-reference">13. Troubleshooting
+reference</a></li>
+<li><a href="#shutdown-and-cleanup" id="toc-shutdown-and-cleanup">14.
+Shutdown and cleanup</a></li>
+<li><a href="#recommended-follow-up-improvements" id="toc-recommended-follow-up-improvements">15. Recommended follow-up
+improvements</a></li>
+</ul></li>
+</ul>
+</nav>
+<h1 id="polaris-docker-squish-runbook">Polaris Docker + Squish
+Runbook</h1>
+<p><strong>Platform:</strong> Ubuntu 22.04.5 LTS<br />
+<strong>Polaris repository:</strong>
+<code>~/Desktop/polaris-v3</code><br />
+<strong>Squish:</strong> 9.2.2 for Qt 6.11.x<br />
+<strong>Last updated:</strong> August 21, 2026</p>
+<p>This document records how the Polaris Docker system was started and
+built, how Squish was installed and exposed to the Docker containers,
+and how the Cart and Assistant GUIs were launched as attachable
+AUTs.</p>
+<h2 id="final-architecture">1. Final architecture</h2>
+<table style="width:100%;">
+<colgroup>
+<col style="width: 21%" />
+<col style="width: 21%" />
+<col style="width: 28%" />
+<col style="width: 28%" />
+</colgroup>
+<thead>
+<tr class="header">
+<th>Component</th>
+<th>Container</th>
+<th style="text-align: right;">Host Squish endpoint</th>
+<th style="text-align: right;">AUT endpoint inside container</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>Cart GUI</td>
+<td><code>docker-cart</code></td>
+<td style="text-align: right;"><code>127.0.0.1:14322</code></td>
+<td style="text-align: right;"><code>localhost:9999</code></td>
+</tr>
+<tr class="even">
+<td>Assistant GUI</td>
+<td><code>docker-cart</code></td>
+<td style="text-align: right;"><code>127.0.0.1:14322</code></td>
+<td style="text-align: right;"><code>localhost:9997</code></td>
+</tr>
+<tr class="odd">
+<td>Surgeon GUI</td>
+<td><code>docker-cockpit</code></td>
+<td style="text-align: right;"><code>127.0.0.1:24322</code></td>
+<td style="text-align: right;"><code>localhost:9998</code></td>
+</tr>
+</tbody>
+</table>
+<p>The Squish IDE connects to the published host port. Docker forwards
+that connection to port 4322 on the appropriate container. The
+container’s Squish Server then attaches to an AUT launched through
+<code>startaut</code>.</p>
+<pre class="text"><code>Squish IDE
+  ├── 127.0.0.1:14322 → docker-cart:4322
+  │     ├── cart_gui      → startaut:9999
+  │     └── assistant_gui → startaut:9997
+  └── 127.0.0.1:24322 → docker-cockpit:4322
+        └── surgeon_gui   → startaut:9998</code></pre>
+<h3 id="verified-state">Verified state</h3>
+<ul>
+<li>Docker, Docker Compose, and NVIDIA GPU access work.</li>
+<li>All Polaris packages build successfully.</li>
+<li>Polaris GUIs run in the four Compose containers.</li>
+<li>Squish 9.2.2 for Qt 6.11.x is installed on the host.</li>
+<li>Cart and Cockpit Squish Server ports are published.</li>
+<li>Cart, Assistant, and Surgeon are registered as attachable AUT
+names.</li>
+<li>Cart and Assistant were verified listening on ports 9999 and 9997
+after rebuilding <code>polaris_scripts</code>.</li>
+<li>The Surgeon launch script still needs the same <code>startaut</code>
+modification before its endpoint will listen on 9998.</li>
+</ul>
+<h2 id="host-and-docker-preparation">2. Host and Docker preparation</h2>
+<p>Verify the host:</p>
+<div class="sourceCode" id="cb2"><pre class="sourceCode bash"><code class="sourceCode bash"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a><span class="fu">cat</span> /etc/os-release <span class="kw">|</span> <span class="fu">grep</span> <span class="at">-E</span> <span class="st">&#39;^(NAME|VERSION|VERSION_CODENAME)=&#39;</span></span>
+<span id="cb2-2"><a href="#cb2-2" aria-hidden="true" tabindex="-1"></a><span class="ex">docker</span> <span class="at">--version</span></span>
+<span id="cb2-3"><a href="#cb2-3" aria-hidden="true" tabindex="-1"></a><span class="ex">docker</span> compose version</span>
+<span id="cb2-4"><a href="#cb2-4" aria-hidden="true" tabindex="-1"></a><span class="ex">systemctl</span> is-active docker</span>
+<span id="cb2-5"><a href="#cb2-5" aria-hidden="true" tabindex="-1"></a><span class="fu">df</span> <span class="at">-h</span> /</span></code></pre></div>
+<p>The working host used Ubuntu 22.04.5, Docker 29.7.2, and Docker
+Compose v5.5.0.</p>
+<h3 id="docker-permission-fix">Docker permission fix</h3>
+<p>The initial <code>hello-world</code> test failed because the user
+could not access <code>/var/run/docker.sock</code>. The account was
+added to the Docker group:</p>
+<div class="sourceCode" id="cb3"><pre class="sourceCode bash"><code class="sourceCode bash"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a><span class="fu">sudo</span> usermod <span class="at">-aG</span> docker <span class="st">&quot;</span><span class="va">$USER</span><span class="st">&quot;</span></span></code></pre></div>
+<p>Log out and back in, or reboot, before checking:</p>
+<div class="sourceCode" id="cb4"><pre class="sourceCode bash"><code class="sourceCode bash"><span id="cb4-1"><a href="#cb4-1" aria-hidden="true" tabindex="-1"></a><span class="fu">id</span> <span class="at">-nG</span></span>
+<span id="cb4-2"><a href="#cb4-2" aria-hidden="true" tabindex="-1"></a><span class="ex">docker</span> run <span class="at">--rm</span> hello-world</span></code></pre></div>
+<blockquote>
+<p>The <code>docker</code> group grants root-equivalent control through
+Docker. Only trusted users should belong to it.</p>
+</blockquote>
+<h3 id="repository-and-environment">Repository and environment</h3>
+<div class="sourceCode" id="cb5"><pre class="sourceCode bash"><code class="sourceCode bash"><span id="cb5-1"><a href="#cb5-1" aria-hidden="true" tabindex="-1"></a><span class="bu">cd</span> ~/Desktop/polaris-v3</span>
+<span id="cb5-2"><a href="#cb5-2" aria-hidden="true" tabindex="-1"></a><span class="fu">git</span> status</span>
+<span id="cb5-3"><a href="#cb5-3" aria-hidden="true" tabindex="-1"></a><span class="ex">docker</span> compose config <span class="at">--services</span></span>
+<span id="cb5-4"><a href="#cb5-4" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb5-5"><a href="#cb5-5" aria-hidden="true" tabindex="-1"></a><span class="bu">export</span> <span class="va">DOCKER_UID</span><span class="op">=</span><span class="st">&quot;</span><span class="va">$(</span><span class="fu">id</span> <span class="at">-u</span><span class="va">)</span><span class="st">&quot;</span></span>
+<span id="cb5-6"><a href="#cb5-6" aria-hidden="true" tabindex="-1"></a><span class="bu">export</span> <span class="va">DOCKER_GID</span><span class="op">=</span><span class="st">&quot;</span><span class="va">$(</span><span class="fu">id</span> <span class="at">-g</span><span class="va">)</span><span class="st">&quot;</span></span>
+<span id="cb5-7"><a href="#cb5-7" aria-hidden="true" tabindex="-1"></a><span class="fu">xhost</span> +local:docker</span></code></pre></div>
+<p>The repository defines <code>cart</code>, <code>cockpit</code>,
+<code>perception</code>, and <code>techpc</code> services.</p>
+<h3 id="nvidia-container-toolkit">NVIDIA Container Toolkit</h3>
+<p>The first <code>make up</code> failed because Docker could not select
+the NVIDIA runtime. After installing NVIDIA Container Toolkit:</p>
+<div class="sourceCode" id="cb6"><pre class="sourceCode bash"><code class="sourceCode bash"><span id="cb6-1"><a href="#cb6-1" aria-hidden="true" tabindex="-1"></a><span class="fu">sudo</span> nvidia-ctk runtime configure <span class="at">--runtime</span><span class="op">=</span>docker</span>
+<span id="cb6-2"><a href="#cb6-2" aria-hidden="true" tabindex="-1"></a><span class="fu">sudo</span> systemctl restart docker</span></code></pre></div>
+<p>Verify GPU access:</p>
+<div class="sourceCode" id="cb7"><pre class="sourceCode bash"><code class="sourceCode bash"><span id="cb7-1"><a href="#cb7-1" aria-hidden="true" tabindex="-1"></a><span class="ex">docker</span> run <span class="at">--rm</span> <span class="at">--gpus</span> all <span class="dt">\</span></span>
+<span id="cb7-2"><a href="#cb7-2" aria-hidden="true" tabindex="-1"></a>  nvidia/cuda:13.1.0-base-ubuntu22.04 <span class="dt">\</span></span>
+<span id="cb7-3"><a href="#cb7-3" aria-hidden="true" tabindex="-1"></a>  nvidia-smi</span></code></pre></div>
+<h2 id="start-and-build-the-polaris-containers">3. Start and build the
+Polaris containers</h2>
+<p>Start all services:</p>
+<div class="sourceCode" id="cb8"><pre class="sourceCode bash"><code class="sourceCode bash"><span id="cb8-1"><a href="#cb8-1" aria-hidden="true" tabindex="-1"></a><span class="bu">cd</span> ~/Desktop/polaris-v3</span>
+<span id="cb8-2"><a href="#cb8-2" aria-hidden="true" tabindex="-1"></a><span class="fu">make</span> up</span>
+<span id="cb8-3"><a href="#cb8-3" aria-hidden="true" tabindex="-1"></a><span class="ex">docker</span> compose ps</span></code></pre></div>
+<p>The expected container names are:</p>
+<pre class="text"><code>docker-cart
+docker-cockpit
+docker-perception
+docker-techpc</code></pre>
+<h3 id="build-polaris">Build Polaris</h3>
+<p>Enter the Cart container:</p>
+<div class="sourceCode" id="cb10"><pre class="sourceCode bash"><code class="sourceCode bash"><span id="cb10-1"><a href="#cb10-1" aria-hidden="true" tabindex="-1"></a><span class="fu">make</span> shell cart</span></code></pre></div>
+<p>Inside the container:</p>
+<div class="sourceCode" id="cb11"><pre class="sourceCode bash"><code class="sourceCode bash"><span id="cb11-1"><a href="#cb11-1" aria-hidden="true" tabindex="-1"></a><span class="bu">source</span> /opt/ros/humble/setup.bash</span>
+<span id="cb11-2"><a href="#cb11-2" aria-hidden="true" tabindex="-1"></a><span class="bu">source</span> /opt/rti_connext_dds-7.3.0/resource/scripts/rtisetenv_x64Linux4gcc7.3.0.bash</span>
+<span id="cb11-3"><a href="#cb11-3" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb11-4"><a href="#cb11-4" aria-hidden="true" tabindex="-1"></a><span class="ex">colcon</span> build <span class="at">--event-handlers</span> console_direct+</span></code></pre></div>
+<p>The first full build exhausted resources while compiling
+<code>surgeon_gui</code>. It was recovered with sequential builds:</p>
+<div class="sourceCode" id="cb12"><pre class="sourceCode bash"><code class="sourceCode bash"><span id="cb12-1"><a href="#cb12-1" aria-hidden="true" tabindex="-1"></a><span class="bu">export</span> <span class="va">CMAKE_BUILD_PARALLEL_LEVEL</span><span class="op">=</span>1</span>
+<span id="cb12-2"><a href="#cb12-2" aria-hidden="true" tabindex="-1"></a><span class="ex">colcon</span> build <span class="dt">\</span></span>
+<span id="cb12-3"><a href="#cb12-3" aria-hidden="true" tabindex="-1"></a>  <span class="at">--packages-select</span> surgeon_gui <span class="dt">\</span></span>
+<span id="cb12-4"><a href="#cb12-4" aria-hidden="true" tabindex="-1"></a>  <span class="at">--executor</span> sequential <span class="dt">\</span></span>
+<span id="cb12-5"><a href="#cb12-5" aria-hidden="true" tabindex="-1"></a>  <span class="at">--event-handlers</span> console_direct+</span>
+<span id="cb12-6"><a href="#cb12-6" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb12-7"><a href="#cb12-7" aria-hidden="true" tabindex="-1"></a><span class="bu">export</span> <span class="va">CMAKE_BUILD_PARALLEL_LEVEL</span><span class="op">=</span>2</span>
+<span id="cb12-8"><a href="#cb12-8" aria-hidden="true" tabindex="-1"></a><span class="ex">colcon</span> build <span class="dt">\</span></span>
+<span id="cb12-9"><a href="#cb12-9" aria-hidden="true" tabindex="-1"></a>  <span class="at">--executor</span> sequential <span class="dt">\</span></span>
+<span id="cb12-10"><a href="#cb12-10" aria-hidden="true" tabindex="-1"></a>  <span class="at">--event-handlers</span> console_direct+</span></code></pre></div>
+<h2 id="run-polaris-without-squish">4. Run Polaris without Squish</h2>
+<p>Use separate host terminals:</p>
+<div class="sourceCode" id="cb13"><pre class="sourceCode bash"><code class="sourceCode bash"><span id="cb13-1"><a href="#cb13-1" aria-hidden="true" tabindex="-1"></a><span class="fu">make</span> run perception</span></code></pre></div>
+<div class="sourceCode" id="cb14"><pre class="sourceCode bash"><code class="sourceCode bash"><span id="cb14-1"><a href="#cb14-1" aria-hidden="true" tabindex="-1"></a><span class="fu">make</span> run cart</span></code></pre></div>
+<div class="sourceCode" id="cb15"><pre class="sourceCode bash"><code class="sourceCode bash"><span id="cb15-1"><a href="#cb15-1" aria-hidden="true" tabindex="-1"></a><span class="fu">make</span> run cockpit</span></code></pre></div>
+<p>Optionally:</p>
+<div class="sourceCode" id="cb16"><pre class="sourceCode bash"><code class="sourceCode bash"><span id="cb16-1"><a href="#cb16-1" aria-hidden="true" tabindex="-1"></a><span class="fu">make</span> run techpc</span></code></pre></div>
+<p>The launchers run:</p>
+<table>
+<thead>
+<tr class="header">
+<th>Service</th>
+<th>Programs</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>Perception</td>
+<td>System Manager and Perception children</td>
+</tr>
+<tr class="even">
+<td>Cart</td>
+<td>System Manager, Cart GUI, Assistant GUI</td>
+</tr>
+<tr class="odd">
+<td>Cockpit</td>
+<td>System Manager, Surgeon GUI, Lindir</td>
+</tr>
+<tr class="even">
+<td>Tech PC</td>
+<td>Engineer GUI and RViz</td>
+</tr>
+</tbody>
+</table>
+<p>Hardware-related warnings are expected in a Docker-only system
+without physical Polaris hardware.</p>
+<h2 id="install-the-correct-squish-build">5. Install the correct Squish
+build</h2>
+<p>The original local Squish installation targeted Qt 6.8:</p>
+<pre class="text"><code>~/squish-for-qt-9.2.2_68x</code></pre>
+<p>The Docker Polaris GUIs use Qt 6.11.1:</p>
+<div class="sourceCode" id="cb18"><pre class="sourceCode bash"><code class="sourceCode bash"><span id="cb18-1"><a href="#cb18-1" aria-hidden="true" tabindex="-1"></a><span class="ex">docker</span> exec docker-cart bash <span class="at">-lc</span> <span class="st">&#39;</span></span>
+<span id="cb18-2"><a href="#cb18-2" aria-hidden="true" tabindex="-1"></a><span class="st">  qtpaths6 --qt-version 2&gt;/dev/null || qmake6 -query QT_VERSION</span></span>
+<span id="cb18-3"><a href="#cb18-3" aria-hidden="true" tabindex="-1"></a><span class="st">&#39;</span></span>
+<span id="cb18-4"><a href="#cb18-4" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb18-5"><a href="#cb18-5" aria-hidden="true" tabindex="-1"></a><span class="ex">docker</span> exec docker-cart bash <span class="at">-lc</span> <span class="st">&#39;</span></span>
+<span id="cb18-6"><a href="#cb18-6" aria-hidden="true" tabindex="-1"></a><span class="st">  ldd /workspace/install/cart_gui/bin/appCart |</span></span>
+<span id="cb18-7"><a href="#cb18-7" aria-hidden="true" tabindex="-1"></a><span class="st">  grep -E &quot;Qt6(Core|Quick|Qml)&quot;</span></span>
+<span id="cb18-8"><a href="#cb18-8" aria-hidden="true" tabindex="-1"></a><span class="st">&#39;</span></span></code></pre></div>
+<p>Squish’s Qt wrapper must match the AUT’s Qt version. A separate Qt
+6.11 build was therefore installed from:</p>
+<pre class="text"><code>~/Downloads/squish-9.2.2-qt611x-linux64.run</code></pre>
+<p>Install it to a separate directory so the Qt 6.8 installation is not
+overwritten:</p>
+<pre class="text"><code>~/squish-for-qt-9.2.2_611x</code></pre>
+<p>For an interactive installation:</p>
+<div class="sourceCode" id="cb21"><pre class="sourceCode bash"><code class="sourceCode bash"><span id="cb21-1"><a href="#cb21-1" aria-hidden="true" tabindex="-1"></a><span class="fu">chmod</span> +x ~/Downloads/squish-9.2.2-qt611x-linux64.run</span>
+<span id="cb21-2"><a href="#cb21-2" aria-hidden="true" tabindex="-1"></a><span class="ex">~/Downloads/squish-9.2.2-qt611x-linux64.run</span></span></code></pre></div>
+<p>Use the existing company floating-license configuration when
+requested. Verify the installation:</p>
+<div class="sourceCode" id="cb22"><pre class="sourceCode bash"><code class="sourceCode bash"><span id="cb22-1"><a href="#cb22-1" aria-hidden="true" tabindex="-1"></a><span class="fu">ls</span> <span class="at">-l</span> <span class="dt">\</span></span>
+<span id="cb22-2"><a href="#cb22-2" aria-hidden="true" tabindex="-1"></a>  ~/squish-for-qt-9.2.2_611x/bin/startaut <span class="dt">\</span></span>
+<span id="cb22-3"><a href="#cb22-3" aria-hidden="true" tabindex="-1"></a>  ~/squish-for-qt-9.2.2_611x/bin/squishserver <span class="dt">\</span></span>
+<span id="cb22-4"><a href="#cb22-4" aria-hidden="true" tabindex="-1"></a>  ~/squish-for-qt-9.2.2_611x/bin/squishrunner</span>
+<span id="cb22-5"><a href="#cb22-5" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb22-6"><a href="#cb22-6" aria-hidden="true" tabindex="-1"></a><span class="ex">~/squish-for-qt-9.2.2_611x/bin/squishserver</span> <span class="at">--version</span></span></code></pre></div>
+<h2 id="mount-squish-and-publish-the-servers">6. Mount Squish and
+publish the servers</h2>
+<p>Create
+<code>~/Desktop/polaris-v3/docker-compose.override.yaml</code>:</p>
+<div class="sourceCode" id="cb23"><pre class="sourceCode yaml"><code class="sourceCode yaml"><span id="cb23-1"><a href="#cb23-1" aria-hidden="true" tabindex="-1"></a><span class="fu">services</span><span class="kw">:</span></span>
+<span id="cb23-2"><a href="#cb23-2" aria-hidden="true" tabindex="-1"></a><span class="at">  </span><span class="fu">cart</span><span class="kw">:</span></span>
+<span id="cb23-3"><a href="#cb23-3" aria-hidden="true" tabindex="-1"></a><span class="at">    </span><span class="fu">volumes</span><span class="kw">:</span></span>
+<span id="cb23-4"><a href="#cb23-4" aria-hidden="true" tabindex="-1"></a><span class="at">      </span><span class="kw">-</span><span class="at"> /home/rren/squish-for-qt-9.2.2_611x:/horizon/thirdparty/squish/9.2.2:ro</span></span>
+<span id="cb23-5"><a href="#cb23-5" aria-hidden="true" tabindex="-1"></a><span class="at">    </span><span class="fu">ports</span><span class="kw">:</span></span>
+<span id="cb23-6"><a href="#cb23-6" aria-hidden="true" tabindex="-1"></a><span class="at">      </span><span class="kw">-</span><span class="at"> </span><span class="st">&quot;127.0.0.1:14322:4322&quot;</span></span>
+<span id="cb23-7"><a href="#cb23-7" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb23-8"><a href="#cb23-8" aria-hidden="true" tabindex="-1"></a><span class="at">  </span><span class="fu">cockpit</span><span class="kw">:</span></span>
+<span id="cb23-9"><a href="#cb23-9" aria-hidden="true" tabindex="-1"></a><span class="at">    </span><span class="fu">volumes</span><span class="kw">:</span></span>
+<span id="cb23-10"><a href="#cb23-10" aria-hidden="true" tabindex="-1"></a><span class="at">      </span><span class="kw">-</span><span class="at"> /home/rren/squish-for-qt-9.2.2_611x:/horizon/thirdparty/squish/9.2.2:ro</span></span>
+<span id="cb23-11"><a href="#cb23-11" aria-hidden="true" tabindex="-1"></a><span class="at">    </span><span class="fu">ports</span><span class="kw">:</span></span>
+<span id="cb23-12"><a href="#cb23-12" aria-hidden="true" tabindex="-1"></a><span class="at">      </span><span class="kw">-</span><span class="at"> </span><span class="st">&quot;127.0.0.1:24322:4322&quot;</span></span></code></pre></div>
+<p>Validate and recreate only the affected containers:</p>
+<div class="sourceCode" id="cb24"><pre class="sourceCode bash"><code class="sourceCode bash"><span id="cb24-1"><a href="#cb24-1" aria-hidden="true" tabindex="-1"></a><span class="ex">docker</span> compose config <span class="at">--quiet</span></span>
+<span id="cb24-2"><a href="#cb24-2" aria-hidden="true" tabindex="-1"></a><span class="bu">echo</span> <span class="va">$?</span></span>
+<span id="cb24-3"><a href="#cb24-3" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb24-4"><a href="#cb24-4" aria-hidden="true" tabindex="-1"></a><span class="ex">docker</span> compose up <span class="at">-d</span> <span class="at">--force-recreate</span> cart cockpit</span>
+<span id="cb24-5"><a href="#cb24-5" aria-hidden="true" tabindex="-1"></a><span class="ex">docker</span> compose ps</span></code></pre></div>
+<p>Verify Squish is visible inside both containers:</p>
+<div class="sourceCode" id="cb25"><pre class="sourceCode bash"><code class="sourceCode bash"><span id="cb25-1"><a href="#cb25-1" aria-hidden="true" tabindex="-1"></a><span class="ex">docker</span> exec docker-cart <span class="dt">\</span></span>
+<span id="cb25-2"><a href="#cb25-2" aria-hidden="true" tabindex="-1"></a>  /horizon/thirdparty/squish/9.2.2/bin/squishserver <span class="at">--version</span></span>
+<span id="cb25-3"><a href="#cb25-3" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb25-4"><a href="#cb25-4" aria-hidden="true" tabindex="-1"></a><span class="ex">docker</span> exec docker-cockpit <span class="dt">\</span></span>
+<span id="cb25-5"><a href="#cb25-5" aria-hidden="true" tabindex="-1"></a>  /horizon/thirdparty/squish/9.2.2/bin/squishserver <span class="at">--version</span></span></code></pre></div>
+<h2 id="configure-allowed-hosts">7. Configure allowed hosts</h2>
+<p>Determine Docker’s bridge gateway:</p>
+<div class="sourceCode" id="cb26"><pre class="sourceCode bash"><code class="sourceCode bash"><span id="cb26-1"><a href="#cb26-1" aria-hidden="true" tabindex="-1"></a><span class="ex">docker</span> inspect <span class="dt">\</span></span>
+<span id="cb26-2"><a href="#cb26-2" aria-hidden="true" tabindex="-1"></a>  <span class="at">--format</span><span class="op">=</span><span class="st">&#39;{{range .NetworkSettings.Networks}}{{.Gateway}}{{end}}&#39;</span> <span class="dt">\</span></span>
+<span id="cb26-3"><a href="#cb26-3" aria-hidden="true" tabindex="-1"></a>  docker-cart</span></code></pre></div>
+<p>The gateway in this setup was <code>172.18.0.1</code>.</p>
+<p>Squish reads allowed client addresses from
+<code>/etc/squishserverrc</code>. Create it in both containers:</p>
+<div class="sourceCode" id="cb27"><pre class="sourceCode bash"><code class="sourceCode bash"><span id="cb27-1"><a href="#cb27-1" aria-hidden="true" tabindex="-1"></a><span class="ex">docker</span> exec <span class="at">-u</span> 0 docker-cart sh <span class="at">-c</span> <span class="dt">\</span></span>
+<span id="cb27-2"><a href="#cb27-2" aria-hidden="true" tabindex="-1"></a>  <span class="st">&#39;printf &quot;%s\n&quot; &quot;ALLOWED_HOSTS=172.18.0.1&quot; &gt; /etc/squishserverrc&#39;</span></span>
+<span id="cb27-3"><a href="#cb27-3" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb27-4"><a href="#cb27-4" aria-hidden="true" tabindex="-1"></a><span class="ex">docker</span> exec <span class="at">-u</span> 0 docker-cockpit sh <span class="at">-c</span> <span class="dt">\</span></span>
+<span id="cb27-5"><a href="#cb27-5" aria-hidden="true" tabindex="-1"></a>  <span class="st">&#39;printf &quot;%s\n&quot; &quot;ALLOWED_HOSTS=172.18.0.1&quot; &gt; /etc/squishserverrc&#39;</span></span></code></pre></div>
+<p>Important distinctions:</p>
+<ul>
+<li><code>/etc/squishserverrc</code> controls <code>ALLOWED_HOSTS</code>
+and the listening port.</li>
+<li><code>$HOME/.squish/ver1/server.ini</code> stores AUT registrations
+and other Squish Server settings.</li>
+<li><code>--configfile</code> points to a structured
+<code>server.ini</code>; it must not point to a plain
+<code>ALLOWED_HOSTS=...</code> file.</li>
+</ul>
+<blockquote>
+<p><code>/etc/squishserverrc</code> is currently created inside each
+container and will be lost if that container is recreated. Re-run this
+step after recreation, or later add a persistent bind mount for the
+file.</p>
+</blockquote>
+<h2 id="start-the-squish-servers">8. Start the Squish Servers</h2>
+<p>Start one server in each container:</p>
+<div class="sourceCode" id="cb28"><pre class="sourceCode bash"><code class="sourceCode bash"><span id="cb28-1"><a href="#cb28-1" aria-hidden="true" tabindex="-1"></a><span class="ex">docker</span> exec <span class="at">-u</span> 1000:1000 docker-cart <span class="dt">\</span></span>
+<span id="cb28-2"><a href="#cb28-2" aria-hidden="true" tabindex="-1"></a>  /horizon/thirdparty/squish/9.2.2/bin/squishserver <span class="dt">\</span></span>
+<span id="cb28-3"><a href="#cb28-3" aria-hidden="true" tabindex="-1"></a>  <span class="at">--port</span> 4322 <span class="dt">\</span></span>
+<span id="cb28-4"><a href="#cb28-4" aria-hidden="true" tabindex="-1"></a>  <span class="at">--daemon</span> <span class="dt">\</span></span>
+<span id="cb28-5"><a href="#cb28-5" aria-hidden="true" tabindex="-1"></a>  <span class="at">--logfile</span> /home/rren/.squish/squishserver-4322.log</span>
+<span id="cb28-6"><a href="#cb28-6" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb28-7"><a href="#cb28-7" aria-hidden="true" tabindex="-1"></a><span class="ex">docker</span> exec <span class="at">-u</span> 1000:1000 docker-cockpit <span class="dt">\</span></span>
+<span id="cb28-8"><a href="#cb28-8" aria-hidden="true" tabindex="-1"></a>  /horizon/thirdparty/squish/9.2.2/bin/squishserver <span class="dt">\</span></span>
+<span id="cb28-9"><a href="#cb28-9" aria-hidden="true" tabindex="-1"></a>  <span class="at">--port</span> 4322 <span class="dt">\</span></span>
+<span id="cb28-10"><a href="#cb28-10" aria-hidden="true" tabindex="-1"></a>  <span class="at">--daemon</span> <span class="dt">\</span></span>
+<span id="cb28-11"><a href="#cb28-11" aria-hidden="true" tabindex="-1"></a>  <span class="at">--logfile</span> /home/rren/.squish/squishserver-4322.log</span></code></pre></div>
+<p>Check the host-side TCP forwarding:</p>
+<div class="sourceCode" id="cb29"><pre class="sourceCode bash"><code class="sourceCode bash"><span id="cb29-1"><a href="#cb29-1" aria-hidden="true" tabindex="-1"></a><span class="ex">nc</span> <span class="at">-zv</span> 127.0.0.1 14322</span>
+<span id="cb29-2"><a href="#cb29-2" aria-hidden="true" tabindex="-1"></a><span class="ex">nc</span> <span class="at">-zv</span> 127.0.0.1 24322</span></code></pre></div>
+<p>Check the real Squish protocol:</p>
+<div class="sourceCode" id="cb30"><pre class="sourceCode bash"><code class="sourceCode bash"><span id="cb30-1"><a href="#cb30-1" aria-hidden="true" tabindex="-1"></a><span class="ex">~/squish-for-qt-9.2.2_611x/bin/squishrunner</span> <span class="dt">\</span></span>
+<span id="cb30-2"><a href="#cb30-2" aria-hidden="true" tabindex="-1"></a>  <span class="at">--host</span> 127.0.0.1 <span class="at">--port</span> 14322 <span class="dt">\</span></span>
+<span id="cb30-3"><a href="#cb30-3" aria-hidden="true" tabindex="-1"></a>  <span class="at">--info</span> attachableApplications</span>
+<span id="cb30-4"><a href="#cb30-4" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb30-5"><a href="#cb30-5" aria-hidden="true" tabindex="-1"></a><span class="ex">~/squish-for-qt-9.2.2_611x/bin/squishrunner</span> <span class="dt">\</span></span>
+<span id="cb30-6"><a href="#cb30-6" aria-hidden="true" tabindex="-1"></a>  <span class="at">--host</span> 127.0.0.1 <span class="at">--port</span> 24322 <span class="dt">\</span></span>
+<span id="cb30-7"><a href="#cb30-7" aria-hidden="true" tabindex="-1"></a>  <span class="at">--info</span> attachableApplications</span></code></pre></div>
+<p>An empty result without an error means the server connection works
+but no AUT has been registered yet.</p>
+<h2 id="register-the-attachable-auts">9. Register the attachable
+AUTs</h2>
+<p>Register from the host through the remote Squish Servers:</p>
+<div class="sourceCode" id="cb31"><pre class="sourceCode bash"><code class="sourceCode bash"><span id="cb31-1"><a href="#cb31-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Cart container</span></span>
+<span id="cb31-2"><a href="#cb31-2" aria-hidden="true" tabindex="-1"></a><span class="ex">~/squish-for-qt-9.2.2_611x/bin/squishrunner</span> <span class="dt">\</span></span>
+<span id="cb31-3"><a href="#cb31-3" aria-hidden="true" tabindex="-1"></a>  <span class="at">--host</span> 127.0.0.1 <span class="at">--port</span> 14322 <span class="dt">\</span></span>
+<span id="cb31-4"><a href="#cb31-4" aria-hidden="true" tabindex="-1"></a>  <span class="at">--config</span> addAttachableAUT cart_gui localhost:9999</span>
+<span id="cb31-5"><a href="#cb31-5" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb31-6"><a href="#cb31-6" aria-hidden="true" tabindex="-1"></a><span class="ex">~/squish-for-qt-9.2.2_611x/bin/squishrunner</span> <span class="dt">\</span></span>
+<span id="cb31-7"><a href="#cb31-7" aria-hidden="true" tabindex="-1"></a>  <span class="at">--host</span> 127.0.0.1 <span class="at">--port</span> 14322 <span class="dt">\</span></span>
+<span id="cb31-8"><a href="#cb31-8" aria-hidden="true" tabindex="-1"></a>  <span class="at">--config</span> addAttachableAUT assistant_gui localhost:9997</span>
+<span id="cb31-9"><a href="#cb31-9" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb31-10"><a href="#cb31-10" aria-hidden="true" tabindex="-1"></a><span class="co"># Cockpit container</span></span>
+<span id="cb31-11"><a href="#cb31-11" aria-hidden="true" tabindex="-1"></a><span class="ex">~/squish-for-qt-9.2.2_611x/bin/squishrunner</span> <span class="dt">\</span></span>
+<span id="cb31-12"><a href="#cb31-12" aria-hidden="true" tabindex="-1"></a>  <span class="at">--host</span> 127.0.0.1 <span class="at">--port</span> 24322 <span class="dt">\</span></span>
+<span id="cb31-13"><a href="#cb31-13" aria-hidden="true" tabindex="-1"></a>  <span class="at">--config</span> addAttachableAUT surgeon_gui localhost:9998</span></code></pre></div>
+<p>Verify:</p>
+<div class="sourceCode" id="cb32"><pre class="sourceCode bash"><code class="sourceCode bash"><span id="cb32-1"><a href="#cb32-1" aria-hidden="true" tabindex="-1"></a><span class="ex">~/squish-for-qt-9.2.2_611x/bin/squishrunner</span> <span class="dt">\</span></span>
+<span id="cb32-2"><a href="#cb32-2" aria-hidden="true" tabindex="-1"></a>  <span class="at">--host</span> 127.0.0.1 <span class="at">--port</span> 14322 <span class="dt">\</span></span>
+<span id="cb32-3"><a href="#cb32-3" aria-hidden="true" tabindex="-1"></a>  <span class="at">--info</span> attachableApplications</span>
+<span id="cb32-4"><a href="#cb32-4" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb32-5"><a href="#cb32-5" aria-hidden="true" tabindex="-1"></a><span class="ex">~/squish-for-qt-9.2.2_611x/bin/squishrunner</span> <span class="dt">\</span></span>
+<span id="cb32-6"><a href="#cb32-6" aria-hidden="true" tabindex="-1"></a>  <span class="at">--host</span> 127.0.0.1 <span class="at">--port</span> 24322 <span class="dt">\</span></span>
+<span id="cb32-7"><a href="#cb32-7" aria-hidden="true" tabindex="-1"></a>  <span class="at">--info</span> attachableApplications</span></code></pre></div>
+<p>Expected mappings:</p>
+<pre class="text"><code>assistant_gui  localhost:9997
+cart_gui       localhost:9999
+surgeon_gui    localhost:9998</code></pre>
+<p>These mappings are stored under the persistent per-container
+<code>/home</code> volume.</p>
+<h2 id="launch-cart-and-assistant-through-startaut">10. Launch Cart and
+Assistant through <code>startaut</code></h2>
+<p>Edit the source launcher:</p>
+<div class="sourceCode" id="cb34"><pre class="sourceCode bash"><code class="sourceCode bash"><span id="cb34-1"><a href="#cb34-1" aria-hidden="true" tabindex="-1"></a><span class="bu">cd</span> ~/Desktop/polaris-v3</span>
+<span id="cb34-2"><a href="#cb34-2" aria-hidden="true" tabindex="-1"></a><span class="fu">nano</span> scripts/run_cart.bash</span></code></pre></div>
+<p>Replace the two direct GUI launches with:</p>
+<div class="sourceCode" id="cb35"><pre class="sourceCode bash"><code class="sourceCode bash"><span id="cb35-1"><a href="#cb35-1" aria-hidden="true" tabindex="-1"></a><span class="va">squish_root</span><span class="op">=</span><span class="st">&quot;/horizon/thirdparty/squish/9.2.2&quot;</span></span>
+<span id="cb35-2"><a href="#cb35-2" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb35-3"><a href="#cb35-3" aria-hidden="true" tabindex="-1"></a><span class="ex">launch</span> <span class="st">&quot;</span><span class="va">$squish_root</span><span class="st">/bin/startaut&quot;</span> <span class="dt">\</span></span>
+<span id="cb35-4"><a href="#cb35-4" aria-hidden="true" tabindex="-1"></a>    <span class="at">--verbose</span> <span class="dt">\</span></span>
+<span id="cb35-5"><a href="#cb35-5" aria-hidden="true" tabindex="-1"></a>    <span class="at">--port</span><span class="op">=</span>9999 <span class="dt">\</span></span>
+<span id="cb35-6"><a href="#cb35-6" aria-hidden="true" tabindex="-1"></a>    <span class="st">&quot;</span><span class="va">$install_root</span><span class="st">/cart_gui/bin/appCart&quot;</span> <span class="dt">\</span></span>
+<span id="cb35-7"><a href="#cb35-7" aria-hidden="true" tabindex="-1"></a>    <span class="dv">2</span><span class="op">&gt;</span> /home/rren/.squish/startaut-cart.log</span>
+<span id="cb35-8"><a href="#cb35-8" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb35-9"><a href="#cb35-9" aria-hidden="true" tabindex="-1"></a><span class="ex">launch</span> <span class="st">&quot;</span><span class="va">$squish_root</span><span class="st">/bin/startaut&quot;</span> <span class="dt">\</span></span>
+<span id="cb35-10"><a href="#cb35-10" aria-hidden="true" tabindex="-1"></a>    <span class="at">--verbose</span> <span class="dt">\</span></span>
+<span id="cb35-11"><a href="#cb35-11" aria-hidden="true" tabindex="-1"></a>    <span class="at">--port</span><span class="op">=</span>9997 <span class="dt">\</span></span>
+<span id="cb35-12"><a href="#cb35-12" aria-hidden="true" tabindex="-1"></a>    <span class="st">&quot;</span><span class="va">$install_root</span><span class="st">/assistant_gui/bin/appAssist&quot;</span> <span class="dt">\</span></span>
+<span id="cb35-13"><a href="#cb35-13" aria-hidden="true" tabindex="-1"></a>    <span class="dv">2</span><span class="op">&gt;</span> /home/rren/.squish/startaut-assistant.log</span></code></pre></div>
+<h3 id="critical-rebuild-the-installed-launcher">Critical: rebuild the
+installed launcher</h3>
+<p><code>make run cart</code> executes:</p>
+<pre class="text"><code>/workspace/install/polaris_scripts/run_cart.bash</code></pre>
+<p>It does not execute <code>scripts/run_cart.bash</code> directly.
+Rebuild <code>polaris_scripts</code> after changing the source:</p>
+<div class="sourceCode" id="cb37"><pre class="sourceCode bash"><code class="sourceCode bash"><span id="cb37-1"><a href="#cb37-1" aria-hidden="true" tabindex="-1"></a><span class="ex">docker</span> exec <span class="at">-it</span> docker-cart docker-entrypoint.sh bash <span class="at">-c</span> <span class="st">&#39;</span></span>
+<span id="cb37-2"><a href="#cb37-2" aria-hidden="true" tabindex="-1"></a><span class="st">  source /opt/ros/humble/setup.bash</span></span>
+<span id="cb37-3"><a href="#cb37-3" aria-hidden="true" tabindex="-1"></a><span class="st">  source /opt/rti_connext_dds-7.3.0/resource/scripts/rtisetenv_x64Linux4gcc7.3.0.bash</span></span>
+<span id="cb37-4"><a href="#cb37-4" aria-hidden="true" tabindex="-1"></a><span class="st">  cd /workspace</span></span>
+<span id="cb37-5"><a href="#cb37-5" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb37-6"><a href="#cb37-6" aria-hidden="true" tabindex="-1"></a><span class="st">  colcon build \</span></span>
+<span id="cb37-7"><a href="#cb37-7" aria-hidden="true" tabindex="-1"></a><span class="st">    --packages-select polaris_scripts \</span></span>
+<span id="cb37-8"><a href="#cb37-8" aria-hidden="true" tabindex="-1"></a><span class="st">    --event-handlers console_direct+</span></span>
+<span id="cb37-9"><a href="#cb37-9" aria-hidden="true" tabindex="-1"></a><span class="st">&#39;</span></span></code></pre></div>
+<p>Verify the installed copy:</p>
+<div class="sourceCode" id="cb38"><pre class="sourceCode bash"><code class="sourceCode bash"><span id="cb38-1"><a href="#cb38-1" aria-hidden="true" tabindex="-1"></a><span class="fu">grep</span> <span class="at">-n</span> <span class="at">-A18</span> <span class="st">&#39;squish_root&#39;</span> <span class="dt">\</span></span>
+<span id="cb38-2"><a href="#cb38-2" aria-hidden="true" tabindex="-1"></a>  install/polaris_scripts/run_cart.bash</span></code></pre></div>
+<p>Start Cart and Assistant:</p>
+<div class="sourceCode" id="cb39"><pre class="sourceCode bash"><code class="sourceCode bash"><span id="cb39-1"><a href="#cb39-1" aria-hidden="true" tabindex="-1"></a><span class="fu">make</span> run cart</span></code></pre></div>
+<p>Leave that terminal running.</p>
+<h3 id="verify-the-aut-endpoints">Verify the AUT endpoints</h3>
+<p>The container image does not include <code>ss</code>, so
+<code>/proc/net/tcp*</code> was used. Port values appear in
+hexadecimal:</p>
+<ul>
+<li>9997 = <code>270D</code></li>
+<li>9999 = <code>270F</code></li>
+</ul>
+<div class="sourceCode" id="cb40"><pre class="sourceCode bash"><code class="sourceCode bash"><span id="cb40-1"><a href="#cb40-1" aria-hidden="true" tabindex="-1"></a><span class="ex">docker</span> exec docker-cart bash <span class="at">-lc</span> <span class="dt">\</span></span>
+<span id="cb40-2"><a href="#cb40-2" aria-hidden="true" tabindex="-1"></a>  <span class="st">&quot;grep -E &#39;:(270D|270F) &#39; /proc/net/tcp /proc/net/tcp6 || true&quot;</span></span></code></pre></div>
+<p>Two listening entries confirm that Cart and Assistant are ready for
+Squish attachment.</p>
+<h2 id="correct-runtime-order">11. Correct runtime order</h2>
+<p>The <code>shutdown()</code> function in
+<code>scripts/common.bash</code> intentionally kills launched
+descendants and orphaned processes. Consequently, stopping
+<code>make run cart</code> can also kill a daemonized Squish Server in
+the same container.</p>
+<p>For the current setup, use this order:</p>
+<ol type="1">
+<li>Start <code>make run cart</code> and leave it running.</li>
+<li>Start or restart <code>squishserver</code> in
+<code>docker-cart</code>.</li>
+<li>Verify <code>--info attachableApplications</code> succeeds.</li>
+<li>Run the Squish test.</li>
+<li>Expect to restart <code>squishserver</code> after stopping and
+restarting <code>make run cart</code>.</li>
+</ol>
+<p>Restart command:</p>
+<div class="sourceCode" id="cb41"><pre class="sourceCode bash"><code class="sourceCode bash"><span id="cb41-1"><a href="#cb41-1" aria-hidden="true" tabindex="-1"></a><span class="ex">docker</span> exec <span class="at">-u</span> 1000:1000 docker-cart <span class="dt">\</span></span>
+<span id="cb41-2"><a href="#cb41-2" aria-hidden="true" tabindex="-1"></a>  /horizon/thirdparty/squish/9.2.2/bin/squishserver <span class="dt">\</span></span>
+<span id="cb41-3"><a href="#cb41-3" aria-hidden="true" tabindex="-1"></a>  <span class="at">--port</span> 4322 <span class="dt">\</span></span>
+<span id="cb41-4"><a href="#cb41-4" aria-hidden="true" tabindex="-1"></a>  <span class="at">--daemon</span> <span class="dt">\</span></span>
+<span id="cb41-5"><a href="#cb41-5" aria-hidden="true" tabindex="-1"></a>  <span class="at">--logfile</span> /home/rren/.squish/squishserver-4322.log</span></code></pre></div>
+<p>Confirm both the process and protocol:</p>
+<div class="sourceCode" id="cb42"><pre class="sourceCode bash"><code class="sourceCode bash"><span id="cb42-1"><a href="#cb42-1" aria-hidden="true" tabindex="-1"></a><span class="ex">docker</span> exec docker-cart ps <span class="at">-ef</span> <span class="kw">|</span> <span class="fu">grep</span> <span class="st">&#39;[s]quishserver&#39;</span></span>
+<span id="cb42-2"><a href="#cb42-2" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb42-3"><a href="#cb42-3" aria-hidden="true" tabindex="-1"></a><span class="ex">~/squish-for-qt-9.2.2_611x/bin/squishrunner</span> <span class="dt">\</span></span>
+<span id="cb42-4"><a href="#cb42-4" aria-hidden="true" tabindex="-1"></a>  <span class="at">--host</span> 127.0.0.1 <span class="at">--port</span> 14322 <span class="dt">\</span></span>
+<span id="cb42-5"><a href="#cb42-5" aria-hidden="true" tabindex="-1"></a>  <span class="at">--info</span> attachableApplications</span></code></pre></div>
+<p>An open Docker host port alone is not sufficient. If the internal
+server has been killed, Docker may still accept the host TCP connection
+and then report:</p>
+<pre class="text"><code>Peer closed the connection during handshake</code></pre>
+<h2 id="configure-squish-ide">12. Configure Squish IDE</h2>
+<p>Start the matching IDE:</p>
+<div class="sourceCode" id="cb44"><pre class="sourceCode bash"><code class="sourceCode bash"><span id="cb44-1"><a href="#cb44-1" aria-hidden="true" tabindex="-1"></a><span class="ex">~/squish-for-qt-9.2.2_611x/bin/ide/squishide</span></span></code></pre></div>
+<p>Open:</p>
+<pre class="text"><code>Edit → Preferences → Squish → Servers</code></pre>
+<p>Choose <strong>Add → Remote Server</strong> and create:</p>
+<pre class="text"><code>Name: docker-cart
+Location: 127.0.0.1:14322</code></pre>
+<p>Select <code>docker-cart</code>, choose <strong>Set as
+Default</strong>, and apply the settings.</p>
+<p>Do not replace the existing physical-system entries such as
+<code>amon-cart</code> or <code>amon-cockpit</code>.</p>
+<p>For Cockpit, add another remote server later:</p>
+<pre class="text"><code>Name: docker-cockpit
+Location: 127.0.0.1:24322</code></pre>
+<p>The Cart test attaches with:</p>
+<div class="sourceCode" id="cb48"><pre class="sourceCode python"><code class="sourceCode python"><span id="cb48-1"><a href="#cb48-1" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> main():</span>
+<span id="cb48-2"><a href="#cb48-2" aria-hidden="true" tabindex="-1"></a>    attachToApplication(<span class="st">&quot;cart_gui&quot;</span>)</span></code></pre></div>
+<p>The Assistant test uses:</p>
+<div class="sourceCode" id="cb49"><pre class="sourceCode python"><code class="sourceCode python"><span id="cb49-1"><a href="#cb49-1" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> main():</span>
+<span id="cb49-2"><a href="#cb49-2" aria-hidden="true" tabindex="-1"></a>    attachToApplication(<span class="st">&quot;assistant_gui&quot;</span>)</span></code></pre></div>
+<h2 id="troubleshooting-reference">13. Troubleshooting reference</h2>
+<h3 id="peer-closed-the-connection-during-handshake"><code>Peer closed the connection during handshake</code></h3>
+<p>Check whether the container’s Squish Server is actually running:</p>
+<div class="sourceCode" id="cb50"><pre class="sourceCode bash"><code class="sourceCode bash"><span id="cb50-1"><a href="#cb50-1" aria-hidden="true" tabindex="-1"></a><span class="ex">docker</span> exec docker-cart ps <span class="at">-ef</span> <span class="kw">|</span> <span class="fu">grep</span> <span class="st">&#39;[s]quishserver&#39;</span></span></code></pre></div>
+<p>If it is absent, restart it after <code>make run cart</code> is
+active.</p>
+<h3 id="tcp-succeeds-but-squish-fails">TCP succeeds but Squish
+fails</h3>
+<p><code>nc -zv</code> checks only that Docker accepts the TCP
+connection. Use this to test the Squish protocol:</p>
+<div class="sourceCode" id="cb51"><pre class="sourceCode bash"><code class="sourceCode bash"><span id="cb51-1"><a href="#cb51-1" aria-hidden="true" tabindex="-1"></a><span class="ex">~/squish-for-qt-9.2.2_611x/bin/squishrunner</span> <span class="dt">\</span></span>
+<span id="cb51-2"><a href="#cb51-2" aria-hidden="true" tabindex="-1"></a>  <span class="at">--host</span> 127.0.0.1 <span class="at">--port</span> 14322 <span class="dt">\</span></span>
+<span id="cb51-3"><a href="#cb51-3" aria-hidden="true" tabindex="-1"></a>  <span class="at">--info</span> attachableApplications</span></code></pre></div>
+<h3 id="remote-address-rejected">Remote address rejected</h3>
+<p>Check:</p>
+<div class="sourceCode" id="cb52"><pre class="sourceCode bash"><code class="sourceCode bash"><span id="cb52-1"><a href="#cb52-1" aria-hidden="true" tabindex="-1"></a><span class="ex">docker</span> exec docker-cart cat /etc/squishserverrc</span>
+<span id="cb52-2"><a href="#cb52-2" aria-hidden="true" tabindex="-1"></a><span class="ex">docker</span> exec docker-cart tail <span class="at">-n</span> 100 <span class="dt">\</span></span>
+<span id="cb52-3"><a href="#cb52-3" aria-hidden="true" tabindex="-1"></a>  /home/rren/.squish/squishserver-4322.log</span></code></pre></div>
+<p>The expected allowed host is the current Docker bridge gateway, which
+was <code>172.18.0.1</code> in this setup.</p>
+<h3 id="gui-launches-but-no-aut-port-appears">GUI launches but no AUT
+port appears</h3>
+<p>Check the <code>startaut</code> logs:</p>
+<div class="sourceCode" id="cb53"><pre class="sourceCode bash"><code class="sourceCode bash"><span id="cb53-1"><a href="#cb53-1" aria-hidden="true" tabindex="-1"></a><span class="ex">docker</span> exec docker-cart sh <span class="at">-c</span> <span class="st">&#39;</span></span>
+<span id="cb53-2"><a href="#cb53-2" aria-hidden="true" tabindex="-1"></a><span class="st">  echo &quot;=== CART ===&quot;</span></span>
+<span id="cb53-3"><a href="#cb53-3" aria-hidden="true" tabindex="-1"></a><span class="st">  sed -n &quot;1,160p&quot; /home/rren/.squish/startaut-cart.log</span></span>
+<span id="cb53-4"><a href="#cb53-4" aria-hidden="true" tabindex="-1"></a><span class="st">  echo &quot;=== ASSISTANT ===&quot;</span></span>
+<span id="cb53-5"><a href="#cb53-5" aria-hidden="true" tabindex="-1"></a><span class="st">  sed -n &quot;1,160p&quot; /home/rren/.squish/startaut-assistant.log</span></span>
+<span id="cb53-6"><a href="#cb53-6" aria-hidden="true" tabindex="-1"></a><span class="st">&#39;</span></span></code></pre></div>
+<p>Confirm that <code>polaris_scripts</code> was rebuilt and that the
+installed launcher—not only the source launcher—contains
+<code>startaut</code>.</p>
+<h3 id="missing-polaris-shared-libraries-during-a-manual-test">Missing
+Polaris shared libraries during a manual test</h3>
+<p>If a manual <code>startaut</code> command reports a missing ROS or
+Polaris library, source the installed environment first:</p>
+<div class="sourceCode" id="cb54"><pre class="sourceCode bash"><code class="sourceCode bash"><span id="cb54-1"><a href="#cb54-1" aria-hidden="true" tabindex="-1"></a><span class="ex">docker</span> exec <span class="at">-it</span> docker-cart docker-entrypoint.sh bash <span class="at">-c</span> <span class="st">&#39;</span></span>
+<span id="cb54-2"><a href="#cb54-2" aria-hidden="true" tabindex="-1"></a><span class="st">  source /workspace/install/polaris_scripts/setup.bash</span></span>
+<span id="cb54-3"><a href="#cb54-3" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb54-4"><a href="#cb54-4" aria-hidden="true" tabindex="-1"></a><span class="st">  exec /horizon/thirdparty/squish/9.2.2/bin/startaut \</span></span>
+<span id="cb54-5"><a href="#cb54-5" aria-hidden="true" tabindex="-1"></a><span class="st">    --verbose \</span></span>
+<span id="cb54-6"><a href="#cb54-6" aria-hidden="true" tabindex="-1"></a><span class="st">    --wrapper=Qt \</span></span>
+<span id="cb54-7"><a href="#cb54-7" aria-hidden="true" tabindex="-1"></a><span class="st">    --port=9999 \</span></span>
+<span id="cb54-8"><a href="#cb54-8" aria-hidden="true" tabindex="-1"></a><span class="st">    /workspace/install/cart_gui/bin/appCart</span></span>
+<span id="cb54-9"><a href="#cb54-9" aria-hidden="true" tabindex="-1"></a><span class="st">&#39;</span></span></code></pre></div>
+<h2 id="shutdown-and-cleanup">14. Shutdown and cleanup</h2>
+<ul>
+<li>Stop foreground <code>make run ...</code> commands with
+<code>Ctrl+C</code>.</li>
+<li>Use <code>docker compose stop</code> to preserve containers and
+named home volumes.</li>
+<li>Be careful with <code>make down</code>: the repository maps it to
+<code>docker compose down -v --remove-orphans</code>, which deletes
+named <code>/home</code> volumes.</li>
+<li>Revoke X11 access when finished:</li>
+</ul>
+<div class="sourceCode" id="cb55"><pre class="sourceCode bash"><code class="sourceCode bash"><span id="cb55-1"><a href="#cb55-1" aria-hidden="true" tabindex="-1"></a><span class="fu">xhost</span> <span class="at">-local:docker</span></span></code></pre></div>
+<h2 id="recommended-follow-up-improvements">15. Recommended follow-up
+improvements</h2>
+<p>The current setup works but still has two manual lifecycle steps. The
+next implementation should:</p>
+<ol type="1">
+<li>Persist <code>/etc/squishserverrc</code> through a bind mount or
+container image layer.</li>
+<li>Start Squish Server as a tracked part of the Cart/Cockpit launcher
+or as a dedicated Compose service/process.</li>
+<li>Apply the same <code>startaut</code> pattern to
+<code>scripts/run_cockpit.bash</code> for <code>surgeon_gui</code> on
+port 9998.</li>
+<li>Rebuild <code>polaris_scripts</code> after modifying the Cockpit
+launcher.</li>
+<li>Add health checks for ports 4322, 9997, 9998, and 9999.</li>
+</ol>
+</body>
+</html>

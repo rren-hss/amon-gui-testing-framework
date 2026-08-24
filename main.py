@@ -1,11 +1,16 @@
+import argparse
 import logging
 import traceback
 from config import (
-    ANSIBLE_HOST_GROUP, 
+    ANSIBLE_HOST_GROUP,
     ANSIBLE_INVENTORY_PATH,
     ANSIBLE_VERSION_TIMEOUT,
-    DEMO_MODE)
+    DEMO_MODE,
+    TARGET_ENVIRONMENT)
 
+from baseline_reset import return_to_baseline
+from case_picker import pick_test_cases
+from squish_preflight import run_preflight
 from report_generator import (
     generate_reports,
     open_reports,
@@ -47,6 +52,67 @@ def should_stop_after_step(test_case, result):
     return status == "FAIL" and failure_policy == "abort"
 
 
+def parse_args():
+    parser = argparse.ArgumentParser(
+        description="Run the Amon GUI testing framework.",
+    )
+
+    parser.add_argument(
+        "--case",
+        nargs="*",
+        default=None,
+        metavar="TEST_CASE_ID",
+        help=(
+            "One or more test case IDs to run (e.g. --case QA-T1137 "
+            "QA-T1127), skipping the interactive picker. Omit to pick "
+            "cases interactively."
+        ),
+    )
+
+    parser.add_argument(
+        "--all",
+        action="store_true",
+        help="Run every test case in TEST_STEPS, skipping the interactive picker.",
+    )
+
+    return parser.parse_args()
+
+
+def select_test_cases(test_steps, case_ids):
+    if not case_ids:
+        return test_steps
+
+    known_ids = {test_case["id"] for test_case in test_steps}
+    unknown_ids = [
+        case_id for case_id in case_ids if case_id not in known_ids
+    ]
+
+    if unknown_ids:
+        raise ValueError(
+            f"Unknown test case ID(s): {', '.join(unknown_ids)}. "
+            f"Available: {', '.join(sorted(known_ids))}"
+        )
+
+    return [
+        test_case
+        for test_case in test_steps
+        if test_case["id"] in case_ids
+    ]
+
+
+def warn_about_physical_only_cases(test_cases, target_environment):
+    if target_environment == "physical":
+        return
+
+    for test_case in test_cases:
+        if test_case.get("requires_physical_hardware"):
+            logging.warning(
+                "Test case %s (%s) requires physical Amon hardware but "
+                "TARGET_ENVIRONMENT is '%s' - it will likely fail.",
+                test_case["id"], test_case["name"], target_environment,
+            )
+
+
 def add_framework_failure(results, error):
     results.append(
         {
@@ -67,9 +133,41 @@ def add_framework_failure(results, error):
 
 
 def main():
+    args = parse_args()
+
+    if args.all:
+        selected_test_cases = TEST_STEPS
+    elif args.case:
+        try:
+            selected_test_cases = select_test_cases(TEST_STEPS, args.case)
+        except ValueError as error:
+            print(error)
+            return
+    else:
+        selected_test_cases = pick_test_cases(TEST_STEPS)
+        if selected_test_cases is None:
+            print("Cancelled - no test cases run.")
+            return
+
+    if not selected_test_cases:
+        print("No test cases selected. Nothing to run.")
+        return
+
     setup_logging()
     all_results = []
     test_results = []
+
+    logging.info("Target environment: %s", TARGET_ENVIRONMENT.upper())
+    warn_about_physical_only_cases(selected_test_cases, TARGET_ENVIRONMENT)
+
+    logging.info("Running Squish preflight checks.")
+    preflight_failures = run_preflight(selected_test_cases)
+
+    if preflight_failures:
+        logging.error("Squish preflight failed - aborting before any test cases run:")
+        for gui_name, reason in preflight_failures:
+            logging.error("  %s: %s", gui_name, reason)
+        return
 
     polaris_metadata = get_polaris_version_metadata(
         inventory_path=ANSIBLE_INVENTORY_PATH,
@@ -95,13 +193,25 @@ def main():
     try:
         abort_execution = False
 
-        for test_case in TEST_STEPS:
+        for test_case in selected_test_cases:
             case_results = []
             logging.info(
                 "Starting test case %s - %s",
                 test_case["id"],
                 test_case["name"],
             )
+
+            if test_case.get("reset_before"):
+                logging.info(
+                    "Returning to baseline before test case %s.",
+                    test_case["id"],
+                )
+                if not return_to_baseline():
+                    logging.error(
+                        "Baseline reset before test case %s failed - "
+                        "proceeding anyway.",
+                        test_case["id"],
+                    )
 
             for step in test_case.get("steps", []):
                 step_result = execute_step(test_case, step)
@@ -128,6 +238,17 @@ def main():
                     else:
                         logging.info("Execution stopped because test case %s uses the abort failure policy", test_case["id"])
                     break
+
+            if test_case.get("reset_after"):
+                logging.info(
+                    "Returning to baseline after test case %s.",
+                    test_case["id"],
+                )
+                if not return_to_baseline():
+                    logging.error(
+                        "Baseline reset after test case %s failed.",
+                        test_case["id"],
+                    )
 
             test_results.append(
                 (test_case,

@@ -101,6 +101,20 @@ SSH_CONNECT_TIMEOUT = int(
 # Squish settings
 # ---------------------------------------------------------------------------
 
+# ---------------------------------------------------------------------------
+# Target environment detection
+# ---------------------------------------------------------------------------
+
+# Derived, not separately configured: AMON_CART_HOST above already declares
+# which environment a run targets (loopback == the Docker containers'
+# host-mapped ports, anything else == real Amon hardware), so this just
+# names that fact instead of tracking it a second time.
+TARGET_ENVIRONMENT = (
+    "docker"
+    if AMON_CART_HOST in ("127.0.0.1", "localhost")
+    else "physical"
+)
+
 SQUISHRUNNER = os.environ.get(
     "SQUISHRUNNER",
     str(

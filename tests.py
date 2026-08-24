@@ -44,6 +44,7 @@ TEST_STEPS = [
         "name": "Verify Core Polaris C System Health on Amon Cart",
         "gui": "",
         "failure_policy": "continue",
+        "requires_physical_hardware": True,
         "steps": [
             {
                 "step_id": "1 of 2",
@@ -180,6 +181,8 @@ TEST_STEPS = [
          "name": "Verify That Cart GUI Can Log In And Unlock Other GUIs",
          "gui": "Multi-GUI",
          "failure_policy": "continue",
+         "reset_before": True,
+         "reset_after": True,
          "steps": [
              {
                  "step_id": "1 of 3",
@@ -376,5 +379,52 @@ TEST_STEPS = [
              }
          ],
 
+     },
+    #  Need to check
+     {
+         "id": "QA-T1137",
+         "name": "Verify wide camera feed on surgeon GUI",
+         "gui": "surgeonGUI",
+         "failure_policy": "continue",
+         "reset_before": True,
+         "reset_after": True,
+         "steps": [
+                     {
+                         "step_id": "QA-T1137",
+                         "type": "auto",
+                         "gui": "surgeonGUI",
+                         "squish_step": "verify_sgui_wide_camera_feed",
+                         "screenshot": "verify_sgui_wide_camera_feed.png",
+                         "instruction": "On the Surgeon GUI, verify the wide camera feed panel is displaying a live video stream.",
+                         "expected": "Wide camera feed is visible and updating (not frozen/blank)"
+                     }
+                 ]
+     },
+
+     {
+         "id": "QA-T1138",
+         "name": "Verify Side Camera Feeds on Surgeon GUI",
+         "gui": "surgeonGUI",
+         "failure_policy": "continue",
+         "steps": [
+             {
+                 "step_id": "1 of 2",
+                 "type": "auto",
+                 "gui": "surgeonGUI",
+                 "squish_step": "verify_sgui_side_camera_left_feed",
+                 "screenshot": "verify_sgui_side_camera_left_feed.png",
+                 "instruction": "On the Surgeon GUI, verify the left side camera feed panel is displaying a live video stream.",
+                 "expected": "Left side camera feed is visible and updating (not frozen/blank)",
+             },
+             {
+                 "step_id": "2 of 2",
+                 "type": "auto",
+                 "gui": "surgeonGUI",
+                 "squish_step": "verify_sgui_side_camera_right_feed",
+                 "screenshot": "verify_sgui_side_camera_right_feed.png",
+                 "instruction": "On the Surgeon GUI, verify the right side camera feed panel is displaying a live video stream.",
+                 "expected": "Right side camera feed is visible and updating (not frozen/blank)",
+             },
+         ]
      }
 ]

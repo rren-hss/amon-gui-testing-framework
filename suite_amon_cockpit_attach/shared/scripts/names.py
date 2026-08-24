@@ -18,3 +18,7 @@ apply_Docking_to_the_operative_eye_MyLabel = {"container": o_Overlay, "text": "A
 stepList_ListView = {"container": polaris_Surgeon_GUI_QQuickApplicationWindow, "id": "stepList", "type": "ListView", "unnamed": 1, "visible": True}
 stepList_Viscoat_ProcedureStepButton = {"checkable": False, "container": stepList_ListView, "text": "Viscoat", "type": "ProcedureStepButton", "unnamed": 1, "visible": True}
 viscoat_Rectangle = {"color": "#000000", "container": stepList_Viscoat_ProcedureStepButton, "type": "Rectangle", "unnamed": 1, "visible": True}
+
+polaris_sGUI_widePlayer_GstStreamPlayer = {"container": polaris_Surgeon_GUI_QQuickApplicationWindow, "id": "widePlayer", "type": "GstStreamPlayer", "unnamed": 1, "visible": True}
+polaris_sGUI_leftPlayer_GstStreamPlayer = {"container": polaris_Surgeon_GUI_QQuickApplicationWindow, "id": "leftPlayer", "type": "GstStreamPlayer", "unnamed": 1, "visible": True}
+polaris_sGUI_rightPlayer_GstStreamPlayer = {"container": polaris_Surgeon_GUI_QQuickApplicationWindow, "id": "rightPlayer", "type": "GstStreamPlayer", "unnamed": 1, "visible": True}

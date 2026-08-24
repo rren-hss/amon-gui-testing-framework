@@ -53,6 +53,18 @@ def _window_object_for_aut():
         return names.polaris_aGUI_QQuickApplicationWindow
     return names.polaris_cGUI_QQuickApplicationWindow
 
+def bring_to_front(window):
+    # "raise" is a Python keyword, so QWindow.raise() must be invoked via
+    # getattr rather than window.raise(). Best-effort: an overlapping
+    # window shouldn't fail the step, just make its screenshot unreliable.
+    try:
+        getattr(window, "raise")()
+        window.requestActivate()
+    except Exception as error:
+        test.warning(f"Could not bring window to front before screenshot: {error}")
+
+    snooze(SCREENSHOT_RENDER_DELAY_SECONDS)
+
 def capture_screenshot():
     if not SCREENSHOT_NAME:
         return None
@@ -62,7 +74,7 @@ def capture_screenshot():
 
     window = waitForObject(_window_object_for_aut(), GUI_STATE_TIMEOUT_MS)
 
-    snooze(SCREENSHOT_RENDER_DELAY_SECONDS)
+    bring_to_front(window)
 
     image = object.grabScreenshot(window)
     image.save(screenshot_path)
@@ -298,6 +310,11 @@ def agui_confirmations_side_inc():
         GUI_STATE_TIMEOUT_MS
     )
 
+def preflight_attach():
+    # No-op: main() already called attachToApplication(TARGET_AUT) before
+    # dispatching here, so reaching this handler proves the AUT is attachable.
+    pass
+
 def verify_agui_viscoat_step():
     viscoat_rectangle = waitForObject(names.viscoat_Rectangle)
 
@@ -335,9 +352,8 @@ STEP_HANDLERS = {
     "verify_agui_main_screen": agui_main_screen,
     "verify_cgui_active_case": cgui_active_case,
     "agui_confirmations_side_inc": agui_confirmations_side_inc,
-    "verify_agui_viscoat_step": verify_agui_viscoat_step
-
-    
+    "verify_agui_viscoat_step": verify_agui_viscoat_step,
+    "preflight_attach": preflight_attach,
 
 }
 

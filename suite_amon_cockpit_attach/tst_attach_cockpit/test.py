@@ -1,5 +1,6 @@
 import json
 import os
+import tempfile
 import time
 import names
 
@@ -50,6 +51,19 @@ def write_result(status, actual, screenshot=None, notes=""):
         json.dump(result, result_file, indent=2)
 
 
+def bring_to_front(window):
+    # "raise" is a Python keyword, so QWindow.raise() must be invoked via
+    # getattr rather than window.raise(). Best-effort: an overlapping
+    # window shouldn't fail the step, just make its screenshot unreliable.
+    try:
+        getattr(window, "raise")()
+        window.requestActivate()
+    except Exception as error:
+        test.warning(f"Could not bring window to front before screenshot: {error}")
+
+    snooze(SCREENSHOT_RENDER_DELAY_SECONDS)
+
+
 def capture_screenshot():
     if not SCREENSHOT_NAME:
         return None
@@ -62,7 +76,7 @@ def capture_screenshot():
         GUI_STATE_TIMEOUT_MS,
     )
 
-    snooze(SCREENSHOT_RENDER_DELAY_SECONDS)
+    bring_to_front(window)
 
     image = object.grabScreenshot(window)
     image.save(screenshot_path)
@@ -168,6 +182,89 @@ def verify_step_switch_viscoat():
         "Verify Viscoat is selected -- not a button element"
     )
 
+def preflight_attach():
+    # No-op: main() already called attachToApplication(TARGET_AUT) before
+    # dispatching here, so reaching this handler proves the AUT is attachable.
+    pass
+
+def _verify_stream_player(player, label):
+    test.verify(
+        player.visible,
+        f"Verify {label} panel is visible on Surgeon GUI",
+    )
+
+    test.verify(
+        player.enabled,
+        f"Verify {label} panel is enabled",
+    )
+
+    test.verify(
+        player.width > 0 and player.height > 0,
+        f"Verify {label} panel has a non-zero size",
+    )
+
+    test.verify(
+        player.connectedOnce,
+        f"Verify {label} has connected to its stream at least once",
+    )
+
+    with tempfile.TemporaryDirectory(prefix="stream_feed_") as temp_dir:
+        frame_1_path = os.path.join(temp_dir, "frame_1.png")
+        frame_2_path = os.path.join(temp_dir, "frame_2.png")
+
+        object.grabScreenshot(player).save(frame_1_path)
+        snooze(1)
+        object.grabScreenshot(player).save(frame_2_path)
+
+        with open(frame_1_path, "rb") as frame_1_file:
+            frame_1_bytes = frame_1_file.read()
+
+        with open(frame_2_path, "rb") as frame_2_file:
+            frame_2_bytes = frame_2_file.read()
+
+    test.verify(
+        frame_1_bytes != frame_2_bytes,
+        f"Verify {label} is updating (not a frozen/static frame)",
+    )
+
+def _bring_surgeon_window_to_front():
+    window = waitForObject(
+        names.polaris_Surgeon_GUI_QQuickApplicationWindow,
+        GUI_STATE_TIMEOUT_MS,
+    )
+
+    bring_to_front(window)
+
+def verify_sgui_wide_camera_feed():
+    _bring_surgeon_window_to_front()
+
+    wide_player = waitForObject(
+        names.polaris_sGUI_widePlayer_GstStreamPlayer,
+        GUI_STATE_TIMEOUT_MS,
+    )
+
+    _verify_stream_player(wide_player, "wide camera feed")
+
+def verify_sgui_side_camera_left_feed():
+    _bring_surgeon_window_to_front()
+
+    left_player = waitForObject(
+        names.polaris_sGUI_leftPlayer_GstStreamPlayer,
+        GUI_STATE_TIMEOUT_MS,
+    )
+
+    _verify_stream_player(left_player, "left side camera feed")
+
+def verify_sgui_side_camera_right_feed():
+    _bring_surgeon_window_to_front()
+
+    right_player = waitForObject(
+        names.polaris_sGUI_rightPlayer_GstStreamPlayer,
+        GUI_STATE_TIMEOUT_MS,
+    )
+
+    _verify_stream_player(right_player, "right side camera feed")
+
 
 # Define this after all handler functions exist.
 STEP_HANDLERS = {
@@ -179,7 +276,11 @@ STEP_HANDLERS = {
     "verify_start_surgery_button": verify_start_surgery_popup,
     "click_sgui_start_surgery": verify_docking_confirmation,
     "verify_sgui_enabled": sgui_docking_confirm,
-    "verify_step_switch_viscoat": verify_step_switch_viscoat
+    "verify_step_switch_viscoat": verify_step_switch_viscoat,
+    "verify_sgui_wide_camera_feed": verify_sgui_wide_camera_feed,
+    "verify_sgui_side_camera_left_feed": verify_sgui_side_camera_left_feed,
+    "verify_sgui_side_camera_right_feed": verify_sgui_side_camera_right_feed,
+    "preflight_attach": preflight_attach,
 }
 
 
