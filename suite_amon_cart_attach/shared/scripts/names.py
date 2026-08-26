@@ -18,6 +18,15 @@ polaris_cGUI_logo_Image = {"container": polaris_cGUI_QQuickApplicationWindow, "i
 polaris_aGUI_topBar_TopBar = {"container": polaris_aGUI_QQuickApplicationWindow, "objectName": "topBar", "type": "TopBar", "visible": True}
 polaris_cGUI_ActiveCase = {"container": polaris_cGUI_QQuickApplicationWindow, "type": "ActiveCase", "unnamed": 1, "visible": True}
 o_Rectangle = {"color": "#121a26", "container": polaris_cGUI_ActiveCase, "type": "Rectangle", "unnamed": 1, "visible": True}
+# Surgical timer value labels (QA-T1139). The value itself has no stable
+# identifying property (its literal text changes every second, and its
+# real type name carries a per-session-generated suffix), so it's matched
+# by shape instead of an exact string -- RegularExpression matches any
+# "M:SS"/"MM:SS"/"H:MM:SS" reading regardless of its current value, same
+# object map mechanism as every other entry here, no custom traversal
+# code needed.
+cGUI_timer_MyLabel = {"container": polaris_cGUI_ActiveCase, "text": RegularExpression(r"^\d{1,2}(:\d{2}){1,2}$"), "type": "MyLabel", "unnamed": 1, "visible": True}
+polaris_aGUI_timer_MyLabel = {"container": polaris_aGUI_topBar_TopBar, "text": RegularExpression(r"^\d{1,2}(:\d{2}){1,2}$"), "type": "MyLabel", "unnamed": 1, "visible": True}
 polaris_aGUI_Surgeon_MyLabel = {"container": polaris_aGUI_QQuickApplicationWindow, "text": "Surgeon:", "type": "MyLabel", "unnamed": 1, "visible": True}
 polaris_cGUI_MainPage = {"container": polaris_cGUI_QQuickApplicationWindow, "type": "MainPage", "unnamed": 1, "visible": True}
 case_Setup_Text = {"container": polaris_cGUI_MainPage, "text": "Case Setup", "type": "Text", "unnamed": 1, "visible": True}
@@ -49,3 +58,6 @@ polaris_aGUI_Surgeon_Active_MyLabel = {"container": polaris_aGUI_QQuickApplicati
 polaris_aGUI_stepList_ListView = {"container": polaris_aGUI_QQuickApplicationWindow, "id": "stepList", "type": "ListView", "unnamed": 1, "visible": True}
 stepList_Viscoat_ProcedureStepButton = {"checkable": False, "container": polaris_aGUI_stepList_ListView, "text": "Viscoat", "type": "ProcedureStepButton", "unnamed": 1, "visible": True}
 viscoat_Rectangle = {"color": "#000000", "container": stepList_Viscoat_ProcedureStepButton, "type": "Rectangle", "unnamed": 1, "visible": True}
+
+polaris_aGUI_videoPlayer_GstStreamPlayer = {"container": polaris_aGUI_QQuickApplicationWindow, "id": "videoPlayer", "type": "GstStreamPlayer", "unnamed": 1, "visible": True}
+polaris_aGUI_videoSink_Qt6GLVideoItem = {"container": polaris_aGUI_videoPlayer_GstStreamPlayer, "id": "videoSink", "type": "Qt6GLVideoItem", "unnamed": 1, "visible": True}

@@ -13,6 +13,7 @@ from case_picker import pick_test_cases
 from squish_preflight import run_preflight
 from report_generator import (
     generate_reports,
+    generate_rollup_report,
     open_reports,
     print_summary,
 )
@@ -132,6 +133,41 @@ def add_framework_failure(results, error):
     )
 
 
+def add_baseline_reset_failure(results, test_case):
+    """Records why a test case's steps never ran when its pre-case
+    return_to_baseline() call fails. Uses ABORTED (not FAIL): the case
+    itself was never attempted, so it isn't a step failure, and ABORTED is
+    the one status report_generator.py already treats as taking priority
+    over everything else for a case's overall result.
+    """
+    results.append(
+        {
+            "test_case": test_case["id"],
+            "test_name": test_case["name"],
+            "gui": test_case.get("gui", "N/A"),
+            "step_id": "BASELINE-RESET-BEFORE",
+            "step_type": "Framework",
+            "instruction": (
+                f"Return to baseline before running test case {test_case['id']}."
+            ),
+            "expected": (
+                "reset_surgical_sequence.sh completes and the ROS control "
+                "graph (control_mux + both controller managers) is ready."
+            ),
+            "actual": (
+                "Baseline reset failed, or the system did not become ready "
+                "in time -- see the console log for reset_surgical_sequence.sh's "
+                "own output. Test case skipped rather than run against an "
+                "unready baseline."
+            ),
+            "status": "ABORTED",
+            "screenshot": None,
+            "notes": "",
+            "timestamp": timestamp(),
+        }
+    )
+
+
 def main():
     args = parse_args()
 
@@ -206,15 +242,21 @@ def main():
                     "Returning to baseline before test case %s.",
                     test_case["id"],
                 )
-                if not return_to_baseline():
+                if not return_to_baseline(
+                    restart_techpc=test_case.get("restart_techpc", False)
+                ):
                     logging.error(
                         "Baseline reset before test case %s failed - "
-                        "proceeding anyway.",
+                        "skipping this test case.",
                         test_case["id"],
                     )
+                    add_baseline_reset_failure(case_results, test_case)
+                    all_results.extend(case_results)
+                    test_results.append((test_case, case_results))
+                    continue
 
             for step in test_case.get("steps", []):
-                step_result = execute_step(test_case, step)
+                step_result = execute_step(test_case, step, case_results)
                 case_results.append(step_result)
                 all_results.append(step_result)
 
@@ -244,7 +286,9 @@ def main():
                     "Returning to baseline after test case %s.",
                     test_case["id"],
                 )
-                if not return_to_baseline():
+                if not return_to_baseline(
+                    restart_techpc=test_case.get("restart_techpc", False)
+                ):
                     logging.error(
                         "Baseline reset after test case %s failed.",
                         test_case["id"],
@@ -296,7 +340,15 @@ def main():
 
     report_paths = generate_reports(test_results, report_metadata,)
 
+    rollup_path = generate_rollup_report(
+        test_results,
+        selected_test_cases,
+        report_metadata,
+    )
+    report_paths.append(rollup_path)
+
     logging.info("Running artifacts stored in: %s", RUN_DIR,)
+    logging.info("Rollup report generated: %s", rollup_path,)
     for report_path in report_paths:
         logging.info(
             "Test report generated: %s",

@@ -1,5 +1,6 @@
 import json
 import os
+import subprocess
 import time
 import names
 
@@ -23,7 +24,15 @@ SCREENSHOT_NAME = os.environ.get("SCREENSHOT_NAME", "")
 def current_timestamp():
     return time.strftime("%Y-%m-%d %H:%M:%S")
 
-def write_result(status, actual, screenshot=None, notes=""):
+def write_result(
+    status,
+    actual,
+    screenshot=None,
+    notes="",
+    timer_value=None,
+    capture_timestamp=None,
+    read_latency=None,
+):
     result = {
         "test_case": TEST_CASE_ID,
         "test_name": TEST_CASE_NAME,
@@ -38,6 +47,11 @@ def write_result(status, actual, screenshot=None, notes=""):
         "screenshot": screenshot,
         "notes": notes,
         "timestamp": current_timestamp(),
+        # Only set by timer-capture steps (QA-T1139) -- see
+        # capture_cgui_timer()/capture_agui_timer().
+        "timer_value": timer_value,
+        "capture_timestamp": capture_timestamp,
+        "read_latency": read_latency,
     }
 
     result_directory = os.path.dirname(RESULT_PATH)
@@ -54,14 +68,50 @@ def _window_object_for_aut():
     return names.polaris_cGUI_QQuickApplicationWindow
 
 def bring_to_front(window):
-    # "raise" is a Python keyword, so QWindow.raise() must be invoked via
-    # getattr rather than window.raise(). Best-effort: an overlapping
-    # window shouldn't fail the step, just make its screenshot unreliable.
+    # Qt's own raise()/requestActivate() succeed without error but are
+    # silently ignored by GNOME/Mutter's focus-stealing prevention on the
+    # host (confirmed live on 2026-08-24 -- DISPLAY is shared with the host
+    # via the docker-compose bind mount, so Mutter, not a containerized
+    # Openbox, is what actually controls window stacking here). wmctrl
+    # sends an EWMH _NET_ACTIVE_WINDOW client message, which Mutter treats
+    # as a legitimate external request (like a taskbar click) rather than
+    # the app self-raising, so it actually works where the raw Qt call
+    # doesn't. This script runs on the host (squishrunner is a host
+    # binary), so wmctrl is directly callable here.
+    # window.title comes back as a Squish "QString" wrapper, not a native
+    # Python str -- confirmed live on 2026-08-24 (passing it straight to
+    # subprocess/str-introspection broke with "'QString' Squish object has
+    # no attribute '__class__'"). str() it immediately so everything below
+    # deals with a real Python string.
+    title = None
     try:
-        getattr(window, "raise")()
-        window.requestActivate()
-    except Exception as error:
-        test.warning(f"Could not bring window to front before screenshot: {error}")
+        title = str(window.title)
+    except Exception:
+        pass
+
+    raised_via_wmctrl = False
+    if title:
+        try:
+            completed = subprocess.run(
+                ["wmctrl", "-a", title],
+                capture_output=True,
+                text=True,
+                timeout=5,
+            )
+            raised_via_wmctrl = completed.returncode == 0
+        except Exception as error:
+            test.warning(f"wmctrl failed to raise window '{title}': {error}")
+
+    if not raised_via_wmctrl:
+        # Fallback for when wmctrl isn't installed -- "raise" is a Python
+        # keyword, so QWindow.raise() must be invoked via getattr. Best
+        # effort: an overlapping window shouldn't fail the step, just make
+        # its screenshot unreliable.
+        try:
+            getattr(window, "raise")()
+            window.requestActivate()
+        except Exception as error:
+            test.warning(f"Could not bring window to front before screenshot: {error}")
 
     snooze(SCREENSHOT_RENDER_DELAY_SECONDS)
 
@@ -80,6 +130,24 @@ def capture_screenshot():
     image.save(screenshot_path)
 
     return screenshot_path
+# def capture_screenshot():
+#     if not SCREENSHOT_NAME:
+#         return None
+
+#     os.makedirs(SCREENSHOT_DIR, exist_ok=True)
+#     screenshot_path = os.path.join(SCREENSHOT_DIR, SCREENSHOT_NAME)
+
+#     window = waitForObject(
+#         names.polaris_Surgeon_GUI_QQuickApplicationWindow,
+#         GUI_STATE_TIMEOUT_MS,
+#     )
+
+#     bring_to_front(window)
+
+#     image = object.grabScreenshot(window)
+#     image.save(screenshot_path)
+
+#     return screenshot_path
 
 def capture_current_screen():
     if TARGET_AUT == "assistant_gui":
@@ -126,13 +194,23 @@ def verify_agui_prelogin():
         "Verify aGUI displays the AWAITING LOGIN pre-login screen",
     )
 
-def verify_cgui_prelogin():
+def _dismiss_system_ready_screen():
+    """cGUI can come up either on the System Ready screen (needs a tap on
+    the logo to advance) or straight on the login screen, depending on
+    timing right after a boot/reset -- confirmed live: a fresh reset lands
+    on System Ready, and any login attempt that skips this wait/click gets
+    stuck since the username field doesn't exist yet on that screen.
+    """
     try:
         waitForObject(names.polaris_cGUI_logo_Image, 3000)
         test.warning("Launch Deviation: cGUI opened on the System Ready screen. Clicking on the logo to continue to login.")
         mouseClick(waitForObject(names.polaris_cGUI_logo_Image), 205, 53, Qt.LeftButton)
     except LookupError:
         test.log("System Ready screen did not appear. cGUI proceeded directly to login.")
+
+
+def verify_cgui_prelogin():
+    _dismiss_system_ready_screen()
 
     label = waitForObject(
     names.polaris_cGUI_UserLoginLabel,
@@ -147,6 +225,10 @@ def verify_cgui_prelogin():
 
 #Login & post login verification
 def cgui_login():
+    _dismiss_system_ready_screen()
+
+    waitForObject(names.polaris_cGUI_UserLoginLabel, 15000)
+
     mouseClick(
         waitForObject(names.usernameField_TextField),
         82,
@@ -331,6 +413,112 @@ def verify_agui_viscoat_step():
         "Verify Confirm button is pressable"
     )
 
+def verify_agui_telecentric_camera_feed():
+    window = waitForObject(
+        names.polaris_aGUI_QQuickApplicationWindow,
+        GUI_STATE_TIMEOUT_MS,
+    )
+
+    bring_to_front(window)
+
+    video_player = waitForObject(
+        names.polaris_aGUI_videoPlayer_GstStreamPlayer,
+        GUI_STATE_TIMEOUT_MS,
+    )
+
+    test.verify(
+        video_player.visible,
+        "Verify telecentric video player is visible",
+    )
+
+    test.verify(
+        video_player.enabled,
+        "Verify telecentric video player is enabled",
+    )
+
+    test.verify(
+        video_player.width > 0 and video_player.height > 0,
+        "Verify telecentric video player has a valid display area",
+    )
+
+    test.verify(
+        getattr(video_player, "connectedOnce", False),
+        "Verify telecentric video player has connected to a video source",
+    )
+
+    video_sink = waitForObject(
+        names.polaris_aGUI_videoSink_Qt6GLVideoItem,
+        GUI_STATE_TIMEOUT_MS,
+    )
+
+    test.verify(
+        video_sink.visible,
+        "Verify telecentric video sink is visible",
+    )
+
+    test.verify(
+        video_sink.width > 0 and video_sink.height > 0,
+        "Verify telecentric video sink has a valid display area",
+    )
+
+# --------------------------------------------------
+# Surgical timer sync check (QA-T1139)
+# --------------------------------------------------
+def _capture_timer(timer_names_entry):
+    """Waits for the timer value label (matched directly by shape via
+    RegularExpression in the object map -- no anchor/sibling lookup
+    needed) and reads its text.
+
+    Reading `.text` isn't local: it's an IPC round-trip to the Squish hook
+    inside the AUT process, so it takes real (if usually small) time. A
+    single time.time() taken right after the read would silently bias
+    every capture_timestamp slightly late by however long that round-trip
+    took. Bracketing the read with a timestamp before and after, and using
+    the midpoint, turns that unknown bias into a bounded, roughly-centered
+    estimate -- and read_latency (the bracket width) is returned too, so
+    an unusually slow read is visible in the report rather than silently
+    absorbed into the comparison's tolerance.
+    """
+    value_label = waitForObject(timer_names_entry, GUI_STATE_TIMEOUT_MS)
+
+    before = time.time()
+    text = str(value_label.text)
+    after = time.time()
+
+    capture_time = (before + after) / 2
+    read_latency = after - before
+
+    return text, capture_time, read_latency
+
+
+def capture_cgui_timer():
+    text, capture_time, read_latency = _capture_timer(names.cGUI_timer_MyLabel)
+
+    return {
+        "timer_value": text,
+        "capture_timestamp": capture_time,
+        "read_latency": read_latency,
+        "actual": (
+            f"Captured Cart GUI surgical timer reading: {text} "
+            f"(read took {read_latency * 1000:.1f} ms)"
+        ),
+    }
+
+
+def capture_agui_timer():
+    text, capture_time, read_latency = _capture_timer(
+        names.polaris_aGUI_timer_MyLabel
+    )
+
+    return {
+        "timer_value": text,
+        "capture_timestamp": capture_time,
+        "read_latency": read_latency,
+        "actual": (
+            f"Captured Assistant GUI surgical timer reading: {text} "
+            f"(read took {read_latency * 1000:.1f} ms)"
+        ),
+    }
 
 # Define this after all handler functions exist.
 STEP_HANDLERS = {
@@ -354,7 +542,9 @@ STEP_HANDLERS = {
     "agui_confirmations_side_inc": agui_confirmations_side_inc,
     "verify_agui_viscoat_step": verify_agui_viscoat_step,
     "preflight_attach": preflight_attach,
-
+    "verify_agui_telecentric_camera_feed": verify_agui_telecentric_camera_feed,
+    "capture_cgui_timer": capture_cgui_timer,
+    "capture_agui_timer": capture_agui_timer,
 }
 
 
@@ -379,14 +569,25 @@ def main():
             )
 
         test.log(f"Executing Squish step: {SQUISH_STEP}")
-        handler()
+        handler_result = handler()
 
         screenshot = capture_screenshot()
 
+        # A handler may optionally return a dict of extra write_result()
+        # kwargs (e.g. timer_value/capture_timestamp for QA-T1139's timer
+        # capture steps, or a more specific "actual" message) -- every
+        # other handler returns None and this is a no-op for them.
+        extra_fields = dict(handler_result) if isinstance(handler_result, dict) else {}
+        actual = extra_fields.pop(
+            "actual",
+            f"Completed Squish step '{SQUISH_STEP}' successfully.",
+        )
+
         write_result(
             status="PASS",
-            actual=f"Completed Squish step '{SQUISH_STEP}' successfully.",
+            actual=actual,
             screenshot=screenshot,
+            **extra_fields,
         )
 
         test.passes(f"{STEP_ID} completed successfully.")

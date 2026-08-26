@@ -46,6 +46,14 @@
 # RESET_MODE=docker or RESET_MODE=physical if auto-detection picks wrong (e.g.
 # containers are up but you specifically want to test the physical rig, or
 # vice versa).
+#
+# techpc (eng_gui + rviz2) is a pure ROS subscriber with no system_manager
+# involved, and most test cases never look at it, so reset_docker prompts
+# ("Restart techpc (eng_gui/rviz2) too? [y/N]") rather than always paying the
+# cost -- reset_docker's process teardown/relaunch doesn't always leave
+# rviz's subscriptions in a state that self-heals via DDS rediscovery, so
+# say yes for cases that rely on watching motion in rviz. Pre-set
+# RESTART_TECHPC=1 or =0 to skip the prompt for scripted/non-interactive runs.
 set -euo pipefail
 
 SYSTEM="${1:-amon}"
@@ -55,6 +63,11 @@ COCKPIT="${SYSTEM}-cockpit"
 
 DOCKER_CART_CONTAINER="docker-cart"
 DOCKER_COCKPIT_CONTAINER="docker-cockpit"
+DOCKER_TECHPC_CONTAINER="docker-techpc"
+
+# Left unset by default -- see the techpc note above. reset_docker prompts
+# for this interactively when it's unset, so scripted/automated callers can
+# still bypass the prompt by pre-setting RESTART_TECHPC=1 or 0.
 
 CART_GUI_UNITS="cart_gui.service assistant_gui.service"
 COCKPIT_GUI_UNITS="surgeon_gui.service"
@@ -302,9 +315,13 @@ reset_docker() {
     # confirmed the way the cart side was -- verify before trusting it.
     local CART_LAUNCHER="/workspace/install/polaris_scripts/run_cart.bash"
     local COCKPIT_LAUNCHER="/workspace/install/polaris_scripts/run_cockpit.bash"
+    local TECHPC_LAUNCHER="/workspace/install/polaris_scripts/run_techpc.bash"
 
     local CART_GUI_PATTERNS=("/cart_gui/bin/appCart" "/assistant_gui/bin/appAssist")
     local COCKPIT_GUI_PATTERNS=("/surgeon_gui/bin/appSurgeon")
+    # techpc has no system_manager -- run_techpc.bash launches these two
+    # directly, nothing else to track.
+    local TECHPC_PATTERNS=("/eng_gui/bin/appEng" "rviz2")
 
     # Every known component binary/script pattern, observed directly via
     # `ps afx` on both containers. NOT just system_manager: an earlier
@@ -322,12 +339,10 @@ reset_docker() {
     local SYSTEM_MANAGER_PATTERN="system_manager/bin/system_manager"
     local CART_COMPONENT_PATTERNS=(
         "$SYSTEM_MANAGER_PATTERN"
-        "control_mux/bin/control_mux"
         "teleop/bin/teleop"
         "surgical_sequencer/bin/surgical_sequencer"
         "surgical_feature_sim"
         "motion_planning/lib/motion_planning"
-        "surgical_planner/bin/rtmod_surgical_planner"
         "data_recorder/bin/data_recorder"
         "config_manager/lib/config_manager"
         "environment_marker_publisher"
@@ -337,6 +352,18 @@ reset_docker() {
         "robot_state_publisher"
         "ros2 launch control_layer_cart"
         "run_config_mgr"
+    )
+
+    # Confirmed via source (src/robotics-image-guidance/control_mux/src/main.cpp)
+    # and live testing on 2026-08-24: these two never respond to SIGTERM --
+    # control_mux just polls `while (rclcpp::ok())`, never observed to flip
+    # after 45s of waiting either. Waiting any amount of time for them is
+    # pure waste when running many cases in sequence, since the outcome
+    # (SIGKILL) is identical whether you wait 5s or 45s -- so skip SIGTERM
+    # and the wait loop entirely and go straight to SIGKILL for just these.
+    local CART_FORCE_KILL_PATTERNS=(
+        "control_mux/bin/control_mux"
+        "surgical_planner/bin/rtmod_surgical_planner"
     )
     local COCKPIT_COMPONENT_PATTERNS=(
         "$SYSTEM_MANAGER_PATTERN"
@@ -411,7 +438,19 @@ reset_docker() {
         FAILURES+=("${container}: ${label}")
     }
 
-    echo "This will kill and restart system_manager and the GUIs in ${DOCKER_CART_CONTAINER} and ${DOCKER_COCKPIT_CONTAINER}."
+    # Prompt only when the caller hasn't already decided (RESTART_TECHPC
+    # unset) -- lets a script pre-set it to 1 or 0 and skip the prompt.
+    if [ -z "${RESTART_TECHPC+x}" ]; then
+        read -r -p "Restart techpc (eng_gui/rviz2) too? [y/N] " techpc_reply
+        case "$techpc_reply" in
+            y|Y) RESTART_TECHPC=1 ;;
+            *) RESTART_TECHPC=0 ;;
+        esac
+    fi
+
+    local techpc_msg=""
+    [ "$RESTART_TECHPC" = "1" ] && techpc_msg=" and ${DOCKER_TECHPC_CONTAINER}"
+    echo "This will kill and restart system_manager and the GUIs in ${DOCKER_CART_CONTAINER} and ${DOCKER_COCKPIT_CONTAINER}${techpc_msg}."
     confirm "Continue?"
 
     echo "== 1. Killing the GUIs =="
@@ -421,6 +460,11 @@ reset_docker() {
     for pattern in "${COCKPIT_GUI_PATTERNS[@]}"; do
         kill_by_pattern "$DOCKER_COCKPIT_CONTAINER" "$pattern"
     done
+    if [ "$RESTART_TECHPC" = "1" ]; then
+        for pattern in "${TECHPC_PATTERNS[@]}"; do
+            kill_by_pattern "$DOCKER_TECHPC_CONTAINER" "$pattern"
+        done
+    fi
 
     echo "== 2. Killing system_manager and every known component on cart and cockpit =="
     for pattern in "${CART_COMPONENT_PATTERNS[@]}"; do
@@ -429,6 +473,10 @@ reset_docker() {
     for pattern in "${COCKPIT_COMPONENT_PATTERNS[@]}"; do
         kill_by_pattern "$DOCKER_COCKPIT_CONTAINER" "$pattern"
     done
+    # Known non-graceful: skip SIGTERM, go straight to SIGKILL, no wait.
+    for pattern in "${CART_FORCE_KILL_PATTERNS[@]}"; do
+        kill_by_pattern "$DOCKER_CART_CONTAINER" "$pattern" "KILL"
+    done
 
     for pattern in "${CART_GUI_PATTERNS[@]}" "${CART_COMPONENT_PATTERNS[@]}"; do
         wait_for_stopped "$DOCKER_CART_CONTAINER" "$pattern"
@@ -436,14 +484,32 @@ reset_docker() {
     for pattern in "${COCKPIT_GUI_PATTERNS[@]}" "${COCKPIT_COMPONENT_PATTERNS[@]}"; do
         wait_for_stopped "$DOCKER_COCKPIT_CONTAINER" "$pattern"
     done
+    if [ "$RESTART_TECHPC" = "1" ]; then
+        for pattern in "${TECHPC_PATTERNS[@]}"; do
+            wait_for_stopped "$DOCKER_TECHPC_CONTAINER" "$pattern"
+        done
+    fi
 
     # -d (detach) is required, not optional: run_cart.bash/run_cockpit.bash
     # block in wait_all() for as long as the processes they launched stay
     # up, which is indefinitely -- a foreground `docker exec` here would
     # just hang this script forever.
+    #
+    # -u is required too: without it, `docker exec` defaults to root (the
+    # image's default user), bypassing docker-entrypoint.sh's gosu-based
+    # privilege drop entirely (that only applies to the container's PID 1).
+    # A root-run stack leaves every log/pid/install file it touches
+    # root-owned -- breaking the next rren-run process that needs to write
+    # there -- and on cockpit specifically, ros2_control_node fails to come
+    # up at all when launched this way.
+    local uid="${SQUISH_CONTAINER_UID:-1000}"
+    local gid="${SQUISH_CONTAINER_GID:-1000}"
     echo "== 3. Relaunching cart and cockpit (system_manager + GUIs together, via their launcher scripts) =="
-    docker exec -d "$DOCKER_CART_CONTAINER" bash "$CART_LAUNCHER"
-    docker exec -d "$DOCKER_COCKPIT_CONTAINER" bash "$COCKPIT_LAUNCHER"
+    docker exec -d -u "${uid}:${gid}" "$DOCKER_CART_CONTAINER" bash "$CART_LAUNCHER"
+    docker exec -d -u "${uid}:${gid}" "$DOCKER_COCKPIT_CONTAINER" bash "$COCKPIT_LAUNCHER"
+    if [ "$RESTART_TECHPC" = "1" ]; then
+        docker exec -d -u "${uid}:${gid}" "$DOCKER_TECHPC_CONTAINER" bash "$TECHPC_LAUNCHER"
+    fi
 
     echo "== 4. Verifying =="
     verify_running "$DOCKER_CART_CONTAINER" "system_manager" "$SYSTEM_MANAGER_PATTERN"
@@ -454,6 +520,49 @@ reset_docker() {
     for pattern in "${COCKPIT_GUI_PATTERNS[@]}"; do
         verify_running "$DOCKER_COCKPIT_CONTAINER" "$pattern" "$pattern"
     done
+    if [ "$RESTART_TECHPC" = "1" ]; then
+        for pattern in "${TECHPC_PATTERNS[@]}"; do
+            verify_running "$DOCKER_TECHPC_CONTAINER" "$pattern" "$pattern"
+        done
+    fi
+
+    # verify_running above only proves the process exists -- it says nothing
+    # about whether the ROS graph inside it has actually finished matching.
+    # Confirmed live: starting a case immediately after "Done" can beat
+    # control_mux to having matched cart's and cockpit's controller_manager
+    # services, so its controller-set switch for DRAPING silently times out
+    # (control_mux itself waits only 3s per call, no internal readiness
+    # wait of its own -- see controller_manager_client.cpp). Neither GUI
+    # surfaces that failure (see CaseSetup.qml's own comment acknowledging
+    # this exact race), so it just reads as "stuck on Moving to Draping" a
+    # few seconds to tens of seconds after a reset, self-resolving once the
+    # graph settles. Waiting for the actual services here, not a fixed
+    # sleep, is what makes "Done" mean "safe to start a case."
+    # Always queried from cart, regardless of which side the service
+    # logically belongs to -- the DDS domain is shared, so cart sees
+    # cockpit's services fine, but confirmed live that cockpit's own
+    # ros2cli daemon can get stuck ("!rclpy.ok()") and give false
+    # negatives for its own services. Cart's has been reliable all
+    # session; querying from one consistent, known-good place avoids that.
+    wait_for_service() {
+        local label="$1" service="$2" timeout="${3:-30}"
+        for _ in $(seq 1 "$timeout"); do
+            if docker exec "$DOCKER_CART_CONTAINER" bash -c \
+                'source /opt/ros/humble/setup.bash >/dev/null 2>&1; ros2 service list 2>/dev/null' \
+                | grep -qx "$service"; then
+                echo "  OK: ${label} (${service}) is ready"
+                return 0
+            fi
+            sleep 1
+        done
+        echo "  NOT READY: ${label} (${service}) did not appear within ${timeout}s" >&2
+        FAILURES+=("${label}: ROS graph not ready")
+    }
+
+    echo "== 5. Waiting for the ROS control graph to settle =="
+    wait_for_service "cart controller_manager" "/controller_manager/list_controllers"
+    wait_for_service "cockpit controller_manager" "/cockpit/controller_manager/list_controllers"
+    wait_for_service "control_mux" "/control_mux/switch_controller_set"
 
     # Per polaris_docker_squish_runbook.html section 11 ("Correct runtime
     # order"): scripts/common.bash's shutdown() kills squishserver as a side
@@ -509,7 +618,7 @@ reset_docker() {
         done
     }
 
-    echo "== 5. Restarting squishserver (killed as a side effect of step 3) =="
+    echo "== 6. Restarting squishserver (killed as a side effect of step 3) =="
     restart_squishserver "$DOCKER_CART_CONTAINER" cart_gui localhost:9999 assistant_gui localhost:9997
     restart_squishserver "$DOCKER_COCKPIT_CONTAINER" surgeon_gui localhost:9998
 

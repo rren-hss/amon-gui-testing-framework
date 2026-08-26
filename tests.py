@@ -183,6 +183,11 @@ TEST_STEPS = [
          "failure_policy": "continue",
          "reset_before": True,
          "reset_after": True,
+         # QA-T1131 (case setup / move to draping, runs immediately after
+         # this case) needs rviz on techpc alive to confirm motion -- its
+         # own reset_before/reset_after aren't set, so this reset_after is
+         # the one that actually determines whether techpc is up for it.
+         "restart_techpc": True,
          "steps": [
              {
                  "step_id": "1 of 3",
@@ -216,215 +221,327 @@ TEST_STEPS = [
          ]
      },
 
-    #CASE SETUP
-     {
-          "id": "QA-T1131",
-          "name": "Verify Surgical Case Setup & Initialization",
-          "gui": "Multi-GUI",
-          "failure_policy": "abort",
-          "steps": [
-              {
-                  "step_id": "1 of 3",
-                  "type": "auto",
-                  "gui": "cartGUI",
-                  "squish_step": "verify_cart_case_setup",
-                  "screenshot": True,
-                  "instruction": "Initialize a case with ID: 123, Laterality: OS, Surgeon: Dr. Smith. Verify that System is ready for draping.",
-                  "expected": "Appropriate fields are entered and submitted. Cart GUI indicates that the System is ready for draping.",
-                  "demo_pause": True,
-              },
-              {
-                  "step_id": "2 of 3",
-                  "type": "auto",
-                  "gui": "assistantGUI",
-                  "squish_step": "agui_case_setup_verify",
-                  "screenshot": "verify_agui_case_setup.png",
-                  "instruction":"Verify Assistant GUI displays the initialized case information and ready-for-draping instructions.",
-                  "expected": "Assistant GUI displays Case: 123, Eye Laterality: OS, Dr. Smith, and the ready-for-draping instructions.",
-              },
-              {
-                  "step_id": "3 of 3",
-                  "type": "auto",
-                  "gui": "surgeonGUI",
-                  "squish_step": "sgui_case_setup_verify",
-                  "screenshot": "verify_sgui_case_setup.png",
-                  "instruction": "Verify Surgeon GUI displays the initialized case information.",
-                  "expected": "Surgeon GUI displays Case: 123, Eye Laterality: OS, and Dr. Smith as the selected surgeon."
-              },
-          ]
-     },
+#CASE SETUP
+    {
+        "id": "QA-T1131",
+        "name": "Verify Surgical Case Setup & Initialization",
+        "gui": "Multi-GUI",
+        "failure_policy": "abort",
+        "steps": [
+            {
+                "step_id": "1 of 3",
+                "type": "auto",
+                "gui": "cartGUI",
+                "squish_step": "verify_cart_case_setup",
+                "screenshot": True,
+                "instruction": "Initialize a case with ID: 123, Laterality: OS, Surgeon: Dr. Smith. Verify that System is ready for draping.",
+                "expected": "Appropriate fields are entered and submitted. Cart GUI indicates that the System is ready for draping.",
+                "demo_pause": True,
+            },
+            {
+                "step_id": "2 of 3",
+                "type": "auto",
+                "gui": "assistantGUI",
+                "squish_step": "agui_case_setup_verify",
+                "screenshot": "verify_agui_case_setup.png",
+                "instruction":"Verify Assistant GUI displays the initialized case information and ready-for-draping instructions.",
+                "expected": "Assistant GUI displays Case: 123, Eye Laterality: OS, Dr. Smith, and the ready-for-draping instructions.",
+            },
+            {
+                "step_id": "3 of 3",
+                "type": "auto",
+                "gui": "surgeonGUI",
+                "squish_step": "sgui_case_setup_verify",
+                "screenshot": "verify_sgui_case_setup.png",
+                "instruction": "Verify Surgeon GUI displays the initialized case information.",
+                "expected": "Surgeon GUI displays Case: 123, Eye Laterality: OS, and Dr. Smith as the selected surgeon."
+            },
+        ]
+    },
 
-     {
-         "id": "QA-T1156",
-         "name": "Surgical Case Flow Verification Test",
-         "gui": "Multi-GUI",
-         "failure_policy": "continue",
-         "steps": [
-             {
-                 "step_id": "1 of 20",
-                 "type": "auto",
-                 "gui": "assistantGUI",
-                 "squish_step": "verify_agui_ini_case",
-                 "screenshot": True,
-                 "instruction": "Check if Assistant GUI shows 'Initialize Case' button",
-                 "expected": "'Initialize Case button' shows on Assistant GUI.",
-             },
-             {
-                 "step_id": "2 of 20",
-                 "type": "auto",
-                 "gui": "cartGUI",
-                 "squish_step": "verify_cgui_draping_ready",
-                 "screenshot": True,
-                 "instruction": "Check if Cart GUI shows the message 'System is ready for Draping...",
-                 "expected": "Cart GUI shows the message 'System is ready for Draping...",
-             },
-             {
-                 "step_id": "3 of 20",
-                 "type": "auto",
-                 "gui": "assistantGUI",
-                 "squish_step": "click_agui_ini_case",
-                 "screenshot": True,
-                 "instruction": "Click 'initialize case' on Assistant GUI",
-                 "expected": "'Initialize Case' was clicked on the Assistant GUI",
-             },
-             {
-                 "step_id": "4 of 20",
-                 "type": "auto",
-                 "gui": "surgeonGUI",
-                 "squish_step": "verify_start_surgery_button",
-                 "screenshot": True,
-                 "instruction": "Control is transferred to Surgeon for Starting the Case. 'Start Surgery' popup is displayed on the sGUI waiting for Surgeon's response",
-                 "expected": "'Start Surgery' Pop up is displayed on the Surgeon GUI - Waiting for the Surgeon's Response.",
-                 
-             },
+     
+#  Need to check
+    {
+            "id": "QA-T1134",
+            "name": "Verify OCT camera feed on surgeon GUI",
+            "gui": "surgeonGUI",
+            "failure_policy": "continue",
+            "reset_before": True,
+            "reset_after": True,
+            "steps": [
+                        {
+                            "step_id": "QA-T1134",
+                            "type": "auto",
+                            "gui": "surgeonGUI",
+                            "squish_step": "verify_sgui_oct_camera_feed",
+                            "screenshot": "verify_sgui_oct_camera_feed.png",
+                            "instruction": "On the Surgeon GUI, verify the OCT camera feed panel is displaying a live video stream.",
+                            "expected": "OCT camera feed is visible and updating (not frozen/blank)"
+                        }
+                    ]
+    },
+    {
+        "id": "QA-T1138",
+        "name": "Verify Side Camera Feeds on Surgeon GUI",
+        "gui": "surgeonGUI",
+        "failure_policy": "continue",
+        "steps": [
+            {
+                "step_id": "1 of 2",
+                "type": "auto",
+                "gui": "surgeonGUI",
+                "squish_step": "verify_sgui_side_camera_left_feed",
+                "screenshot": "verify_sgui_side_camera_left_feed.png",
+                "instruction": "On the Surgeon GUI, verify the left side camera feed panel is displaying a live video stream.",
+                "expected": "Left side camera feed is visible and updating (not frozen/blank)",
+            },
+            {
+                "step_id": "2 of 2",
+                "type": "auto",
+                "gui": "surgeonGUI",
+                "squish_step": "verify_sgui_side_camera_right_feed",
+                "screenshot": "verify_sgui_side_camera_right_feed.png",
+                "instruction": "On the Surgeon GUI, verify the right side camera feed panel is displaying a live video stream.",
+                "expected": "Right side camera feed is visible and updating (not frozen/blank)",
+            },
+        ]
+    },
+    {
+        "id": "QA-T1137",
+        "name": "Verify Wide Camera Feed on Surgeon GUI",
+        "gui": "surgeonGUI",
+        "failure_policy": "continue",
+        "reset_before": True,
+        "reset_after": True,
+        "steps": [
+                    {
+                        "step_id": "QA-T1137",
+                        "type": "auto",
+                        "gui": "surgeonGUI",
+                        "squish_step": "verify_sgui_wide_camera_feed",
+                        "screenshot": "verify_sgui_wide_camera_feed.png",
+                        "instruction": "On the Surgeon GUI, verify the wide camera feed panel is displaying a live video stream.",
+                        "expected": "Wide camera feed is visible and updating (not frozen/blank)"
+                    }
+                ]
+    },
+    {
+            "id": "QA-T1136",
+            "name": "Verify Telecentric Camera Feed on Assistant GUI",
+            "gui": "assistantGUI",
+            "failure_policy": "continue",
+            "steps": [
+                {
+                    "step_id": "QA-T1136",
+                    "type": "auto",
+                    "gui": "assistantGUI",
+                    "squish_step": "verify_agui_telecentric_camera_feed",
+                    "screenshot": "verify_agui_telecentric_camera_feed.png",
+                    "instruction": "On the Assistant GUI, verify the telecentric camera feed panel is displaying a live video stream.",
+                    "expected": "Telecentric camera feed is visible, enabled, properly sized, and connected to a video source.",
+                }
+            ],
+    },
+    {
+    "id": "QA-T1112",
+    "name": "Verify Data Recorder Process Status on Cart, Cockpit, and Perception",
+    "gui": "",
+    "failure_policy": "continue",
+    "steps": [
+        {
+            "step_id": "1 of 3", "type": "terminal", "target": "cart",
+            "command": "ps aux | grep data_recorder | grep -v grep",
+            "instruction": "Check Data Recorder daemon status on Cart PC.",
+            "expected": "Data Recorder is active on Cart PC.",
+        },
+        {
+            "step_id": "2 of 3", "type": "terminal", "target": "cockpit",
+            "command": "ps aux | grep data_recorder | grep -v grep",
+            "instruction": "Check Data Recorder daemon status on Cockpit PC.",
+            "expected": "Data Recorder is active on Cockpit PC.",
+        },
+        {
+            "step_id": "3 of 3", "type": "terminal", "target": "perception",
+            "command": "! ps aux | grep data_recorder | grep -v grep",
+            "instruction": "Check Data Recorder daemon status on Perception PC.",
+            "expected": "Data Recorder is NOT running on Perception PC.",
+        },
+    ],
+},
+
+    # Long Test Chains: Cases 1156, 1158, 1159
+    {
+            "id": "QA-T1156",
+            "name": "Surgical Case Flow Verification Test",
+            "gui": "Multi-GUI",
+            "failure_policy": "continue",
+            "steps": [
+                {
+                    "step_id": "1 of 20",
+                    "type": "auto",
+                    "gui": "assistantGUI",
+                    "squish_step": "verify_agui_ini_case",
+                    "screenshot": True,
+                    "instruction": "Check if Assistant GUI shows 'Initialize Case' button",
+                    "expected": "'Initialize Case button' shows on Assistant GUI.",
+                },
+                {
+                    "step_id": "2 of 20",
+                    "type": "auto",
+                    "gui": "cartGUI",
+                    "squish_step": "verify_cgui_draping_ready",
+                    "screenshot": True,
+                    "instruction": "Check if Cart GUI shows the message 'System is ready for Draping...",
+                    "expected": "Cart GUI shows the message 'System is ready for Draping...",
+                },
+                {
+                    "step_id": "3 of 20",
+                    "type": "auto",
+                    "gui": "assistantGUI",
+                    "squish_step": "click_agui_ini_case",
+                    "screenshot": True,
+                    "instruction": "Click 'initialize case' on Assistant GUI",
+                    "expected": "'Initialize Case' was clicked on the Assistant GUI",
+                },
+                {
+                    "step_id": "4 of 20",
+                    "type": "auto",
+                    "gui": "surgeonGUI",
+                    "squish_step": "verify_start_surgery_button",
+                    "screenshot": True,
+                    "instruction": "Control is transferred to Surgeon for Starting the Case. 'Start Surgery' popup is displayed on the sGUI waiting for Surgeon's response",
+                    "expected": "'Start Surgery' Pop up is displayed on the Surgeon GUI - Waiting for the Surgeon's Response.",
+                    
+                },
+                
+                {
+                    "step_id": "5 of 20",
+                    "type": "auto",
+                    "gui": "cartGUI",
+                    "squish_step": "verify_cgui_surgeon_control",
+                    "screenshot": True,
+                    "instruction": "Control is transferred to Surgeon for Starting the Case. 'Ready for Surgery' text is displayed on the cGUI waiting for Surgeon's response",
+                    "expected": "'Ready for Surgery' text is displayed on the cGUI waiting for Surgeon's response",
+                },
+                {
+                    "step_id": "6 of 20",
+                    "type": "auto",
+                    "gui": "surgeonGUI",
+                    "squish_step": "click_sgui_start_surgery",
+                    "screenshot": True,
+                    "instruction": "On the SGUI: Press the Start Surgery Button.",
+                    "expected": "Screen displays a prompting of the application of the docking to Operator Eye"
+                },
             
-             {
-                 "step_id": "5 of 20",
-                 "type": "auto",
-                 "gui": "cartGUI",
-                 "squish_step": "verify_cgui_surgeon_control",
-                 "screenshot": True,
-                 "instruction": "Control is transferred to Surgeon for Starting the Case. 'Ready for Surgery' text is displayed on the cGUI waiting for Surgeon's response",
-                 "expected": "'Ready for Surgery' text is displayed on the cGUI waiting for Surgeon's response",
-             },
-             {
-                 "step_id": "6 of 20",
-                 "type": "auto",
-                 "gui": "surgeonGUI",
-                 "squish_step": "click_sgui_start_surgery",
-                 "screenshot": True,
-                 "instruction": "On the SGUI: Press the Start Surgery Button.",
-                 "expected": "Screen displays a prompting of the application of the docking to Operator Eye"
-             },
-           
-             {
-                 "step_id": "7 of 20",
-                 "type": "auto",
-                 "gui": "surgeonGUI",
-                 "squish_step": "verify_sgui_enabled",
-                 "screenshot": True,
-                 "instruction": "On the sGUI: Press the confirm button. Wait for the transition of the sGUI to an enabled (not grayed out) screen",
-                 "expected": "sGUI transitions to an enabled screen"
-             },
-             {
-                 "step_id": "8 of 20",
-                 "type": "auto",
-                 "gui": "assistantGUI",
-                 "squish_step": "verify_agui_main_screen",
-                 "screenshot": True,
-                 "instruction": "Verify Assistant GUI is on main surgery scene. Should display 'Assistant Active'",
-                 "expected": "Assistant GUI is on main surgery scene. Displays 'Assistant Active'",
-             },
-             {
-                 "step_id": "9 of 20",
-                 "type": "auto",
-                 "gui": "cartGUI",
-                 "squish_step": "verify_cgui_active_case",
-                 "screenshot": True,
-                 "instruction": "Verify Cart GUI shows 'Case is Active Screen'",
-                 "expected": "Cart GUI displays that the Case is Active and that Control assigned to Surgeon and Assistant GUIs",
-             },
-             {
-                 "step_id": "10 of 20",
-                 "type": "manual",
-                 "gui": "lindirGUI",
-                 "instruction": "Verify 3D Lindir shows the main screen with video channels. Note: No need to verify incoming stream",
-                 "expected": "Lindir 3D shows the main screen with video channels",
-                 "manual_popup_path": MANUAL_POPUP_PATH,
-             },
-             {
-                 "step_id": "11 of 20",
-                 "type": "auto",
-                 "gui": "assistantGUI",
-                 "squish_step": "agui_confirmations_side_inc",
-                 "instruction": "On the Assistant GUI, click confirm buttons on Secondary and Primary arm for step: “Side Incision”. Verify that aGUI says that Surgeon Active.",
-                 "expected": "Upon pressing the confimation buttons on the Secondary and Primary arms on 'Side Incision'. The Assistant GUI says 'Surgeon Active'",
+                {
+                    "step_id": "7 of 20",
+                    "type": "auto",
+                    "gui": "surgeonGUI",
+                    "squish_step": "verify_sgui_enabled",
+                    "screenshot": True,
+                    "instruction": "On the sGUI: Press the confirm button. Wait for the transition of the sGUI to an enabled (not grayed out) screen",
+                    "expected": "sGUI transitions to an enabled screen"
+                },
+                {
+                    "step_id": "8 of 20",
+                    "type": "auto",
+                    "gui": "assistantGUI",
+                    "squish_step": "verify_agui_main_screen",
+                    "screenshot": True,
+                    "instruction": "Verify Assistant GUI is on main surgery scene. Should display 'Assistant Active'",
+                    "expected": "Assistant GUI is on main surgery scene. Displays 'Assistant Active'",
+                },
+                {
+                    "step_id": "9 of 20",
+                    "type": "auto",
+                    "gui": "cartGUI",
+                    "squish_step": "verify_cgui_active_case",
+                    "screenshot": True,
+                    "instruction": "Verify Cart GUI shows 'Case is Active Screen'",
+                    "expected": "Cart GUI displays that the Case is Active and that Control assigned to Surgeon and Assistant GUIs",
+                },
+                {
+                    "step_id": "10 of 20",
+                    "type": "manual",
+                    "gui": "lindirGUI",
+                    "instruction": "Verify 3D Lindir shows the main screen with video channels. Note: No need to verify incoming stream",
+                    "expected": "Lindir 3D shows the main screen with video channels",
+                    "manual_popup_path": MANUAL_POPUP_PATH,
+                },
+                {
+                    "step_id": "11 of 20",
+                    "type": "auto",
+                    "gui": "assistantGUI",
+                    "squish_step": "agui_confirmations_side_inc",
+                    "instruction": "On the Assistant GUI, click confirm buttons on Secondary and Primary arm for step: “Side Incision”. Verify that aGUI says that Surgeon Active.",
+                    "expected": "Upon pressing the confimation buttons on the Secondary and Primary arms on 'Side Incision'. The Assistant GUI says 'Surgeon Active'",
+    
+                },
+                {
+                    "step_id": "12 of 20",
+                    "type": "auto",
+                    "gui": "surgeonGUI",
+                    "squish_step": "verify_step_switch_viscoat",
+                    "instruction": "On the Surgeon GUI, switch to step ‘Viscoat’. Verify that ‘Viscoat’ tab is selected.",
+                    "expected": "'Viscoat step is selected and highlighted",
+                },
+                {
+                    "step_id": "13 of 20",
+                    "type": "auto",
+                    "gui": "assistantGUI",
+                    "squish_step":"verify_agui_viscoat_step",
+                    "instruction": "On aGUI verify that step switched to step ‘Viscoat’. Verify that the secondary arm has a ‘Confirm’ button ready to be pressed - showcasing tool exchange.",
+                    "expected": "Viscoat step is selected. Secondary arm showcase a confirmation for tool exchange.",
+                }
+            ],
 
-             },
-             {
-                 "step_id": "12 of 20",
-                 "type": "auto",
-                 "gui": "surgeonGUI",
-                 "squish_step": "verify_step_switch_viscoat",
-                 "instruction": "On the Surgeon GUI, switch to step ‘Viscoat’. Verify that ‘Viscoat’ tab is selected.",
-                 "expected": "'Viscoat step is selected and highlighted",
-             },
-             {
-                 "step_id": "13 of 20",
-                 "type": "auto",
-                 "gui": "assistantGUI",
-                 "squish_step":"verify_agui_viscoat_step",
-                 "instruction": "On aGUI verify that step switched to step ‘Viscoat’. Verify that the secondary arm has a ‘Confirm’ button ready to be pressed - showcasing tool exchange.",
-                 "expected": "Viscoat step is selected. Secondary arm showcase a confirmation for tool exchange.", 
-             }
-         ],
+    },
 
-     },
-    #  Need to check
-     {
-         "id": "QA-T1137",
-         "name": "Verify wide camera feed on surgeon GUI",
-         "gui": "surgeonGUI",
-         "failure_policy": "continue",
-         "reset_before": True,
-         "reset_after": True,
-         "steps": [
-                     {
-                         "step_id": "QA-T1137",
-                         "type": "auto",
-                         "gui": "surgeonGUI",
-                         "squish_step": "verify_sgui_wide_camera_feed",
-                         "screenshot": "verify_sgui_wide_camera_feed.png",
-                         "instruction": "On the Surgeon GUI, verify the wide camera feed panel is displaying a live video stream.",
-                         "expected": "Wide camera feed is visible and updating (not frozen/blank)"
-                     }
-                 ]
-     },
-
-     {
-         "id": "QA-T1138",
-         "name": "Verify Side Camera Feeds on Surgeon GUI",
-         "gui": "surgeonGUI",
-         "failure_policy": "continue",
-         "steps": [
-             {
-                 "step_id": "1 of 2",
-                 "type": "auto",
-                 "gui": "surgeonGUI",
-                 "squish_step": "verify_sgui_side_camera_left_feed",
-                 "screenshot": "verify_sgui_side_camera_left_feed.png",
-                 "instruction": "On the Surgeon GUI, verify the left side camera feed panel is displaying a live video stream.",
-                 "expected": "Left side camera feed is visible and updating (not frozen/blank)",
-             },
-             {
-                 "step_id": "2 of 2",
-                 "type": "auto",
-                 "gui": "surgeonGUI",
-                 "squish_step": "verify_sgui_side_camera_right_feed",
-                 "screenshot": "verify_sgui_side_camera_right_feed.png",
-                 "instruction": "On the Surgeon GUI, verify the right side camera feed panel is displaying a live video stream.",
-                 "expected": "Right side camera feed is visible and updating (not frozen/blank)",
-             },
-         ]
-     }
+    # Surgical timer sync check: requires an active case with the surgical
+    # timer already running (relies on QA-T1156 leaving the case in that
+    # state directly above) -- no reset_before/reset_after of its own,
+    # since resetting would kill the active case this depends on.
+    {
+        "id": "QA-T1139",
+        "name": "Verify Surgical Timer Is In Sync Across Cart, Assistant, and Surgeon GUIs",
+        "gui": "Multi-GUI",
+        "failure_policy": "continue",
+        "steps": [
+            {
+                "step_id": "1 of 4",
+                "type": "auto",
+                "gui": "cartGUI",
+                "squish_step": "capture_cgui_timer",
+                "screenshot": "cart_gui_timer.png",
+                "instruction": "On the Cart GUI, read the live surgical timer and pair it with a Python wall-clock timestamp.",
+                "expected": "Cart GUI timer reading captured.",
+            },
+            {
+                "step_id": "2 of 4",
+                "type": "auto",
+                "gui": "assistantGUI",
+                "squish_step": "capture_agui_timer",
+                "screenshot": "assistant_gui_timer.png",
+                "instruction": "On the Assistant GUI, read the surgical timer (Duration) and pair it with a Python wall-clock timestamp.",
+                "expected": "Assistant GUI timer reading captured.",
+            },
+            {
+                "step_id": "3 of 4",
+                "type": "auto",
+                "gui": "surgeonGUI",
+                "squish_step": "capture_sgui_timer",
+                "screenshot": "surgeon_gui_timer.png",
+                "instruction": "On the Surgeon GUI, read the surgical timer (Duration) and pair it with a Python wall-clock timestamp.",
+                "expected": "Surgeon GUI timer reading captured.",
+            },
+            {
+                "step_id": "4 of 4",
+                "type": "compare_timers",
+                # Defaults match the spec: Cart GUI as the reference,
+                # 1 second tolerance. Both are overridable here if needed.
+                "instruction": "Compare the three captured timer readings, projected onto the Cart GUI's capture instant to cancel out the sequential-attach delay.",
+                "expected": "Assistant and Surgeon GUI timers are each within 1 second of the Cart GUI timer.",
+            },
+        ],
+    },
 ]

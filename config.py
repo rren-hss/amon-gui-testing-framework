@@ -49,6 +49,11 @@ MANUAL_POPUP_PATH = Path(
 #         "4322",
 #     )
 # )
+
+# AMON_PERCEPTION_HOST = os.environ.get(
+#     "AMON_PERCEPTION_IP", 
+#     "172.16.0.101",
+# )
 # ---------------------------------------------------------------------------
 # Docker connection settings (uncomment when connecting to Docker container)
 # ---------------------------------------------------------------------------
@@ -75,6 +80,20 @@ AMON_COCKPIT_PORT = int(
         "24322",
     )
 )
+
+AMON_PERCEPTION_HOST = os.environ.get(
+    "AMON_PERCEPTION_IP",
+    "127.0.0.1",
+)
+
+# ---------------------------------------------------------------------------
+# Target Lookup
+# ---------------------------------------------------------------------------
+REMOTE_TARGETS = {
+    "cart": {"docker_container": "docker-cart", "ssh_host": AMON_CART_HOST},
+    "cockpit": {"docker_container": "docker-cockpit", "ssh_host": AMON_COCKPIT_HOST},
+    "perception": {"docker_container": "docker-perception", "ssh_host": AMON_PERCEPTION_HOST},
+}
 
 # ---------------------------------------------------------------------------
 # SSH settings

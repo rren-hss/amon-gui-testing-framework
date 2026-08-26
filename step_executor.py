@@ -185,7 +185,155 @@ def run_manual_step(test_case, step):
     "timestamp": timestamp(),
 }
 
-def execute_step(test_case, step):
+def _parse_timer_seconds(text):
+    """Parses a "MM:SS" or "HH:MM:SS" timer reading into total seconds."""
+
+    parts = str(text).strip().split(":")
+
+    if len(parts) == 2:
+        minutes, seconds = parts
+        return int(minutes) * 60 + int(seconds)
+
+    if len(parts) == 3:
+        hours, minutes, seconds = parts
+        return int(hours) * 3600 + int(minutes) * 60 + int(seconds)
+
+    raise ValueError(f"Unrecognized timer format: {text!r}")
+
+
+def run_compare_timers_step(test_case, step, case_results):
+    """Compares surgical timer readings captured from multiple GUIs earlier
+    in the same test case (QA-T1139) against a reference GUI's reading.
+
+    Each prior capture step (see suite test.py's capture_*_timer functions)
+    pairs its GUI's displayed timer text with a Python time.time() taken at
+    the instant it was read. Squish can only attach to one AUT at a time,
+    so these captures happen strictly one after another, not
+    simultaneously -- comparing the raw values directly would conflate
+    that sequential-capture gap with actual clock drift between the GUIs.
+    Instead, each non-reference reading is projected onto the reference's
+    capture instant using the wall-clock gap between the two captures,
+    which cancels out the capture-order skew and isolates the GUIs' own
+    timers from each other.
+
+    Step fields:
+        reference_gui: GUI whose reading the others are compared against
+            (default "cartgui", case-insensitive match against each prior
+            result's "gui" field).
+        tolerance_seconds: max allowed projected delta to still pass
+            (default 1.0, per QA-T1139's spec).
+    """
+
+    base_result = {
+        "test_case": test_case["id"],
+        "test_name": test_case["name"],
+        "gui": step.get("gui", test_case.get("gui", "Multi-GUI")),
+        "step_id": step.get("step_id", "UNKNOWN"),
+        "step_type": "Framework",
+        "instruction": step.get(
+            "instruction",
+            "Compare captured surgical timer readings across GUIs.",
+        ),
+        "expected": step.get(
+            "expected",
+            "All captured timers agree with the reference GUI within tolerance.",
+        ),
+        "screenshot": None,
+        "notes": "",
+        "timestamp": timestamp(),
+    }
+
+    timer_entries = {
+        str(result.get("gui", "")).lower(): result
+        for result in (case_results or [])
+        if result.get("timer_value") is not None
+        and result.get("capture_timestamp") is not None
+    }
+
+    reference_gui = str(step.get("reference_gui", "cartgui")).lower()
+    tolerance_seconds = float(step.get("tolerance_seconds", 1.0))
+
+    if reference_gui not in timer_entries:
+        return {
+            **base_result,
+            "actual": (
+                f"No captured timer reading found for reference GUI "
+                f"'{reference_gui}'. Captured GUIs: "
+                f"{sorted(timer_entries) or 'none'}."
+            ),
+            "status": "FAIL",
+        }
+
+    reference_result = timer_entries[reference_gui]
+
+    try:
+        reference_seconds = _parse_timer_seconds(reference_result["timer_value"])
+    except ValueError as error:
+        return {
+            **base_result,
+            "actual": f"Could not parse reference ({reference_gui}) timer reading: {error}",
+            "status": "FAIL",
+        }
+
+    reference_capture_time = reference_result["capture_timestamp"]
+
+    others = {
+        gui: result
+        for gui, result in timer_entries.items()
+        if gui != reference_gui
+    }
+
+    if not others:
+        return {
+            **base_result,
+            "actual": (
+                f"Only the reference GUI ('{reference_gui}') has a "
+                "captured timer reading -- nothing to compare it against."
+            ),
+            "status": "FAIL",
+        }
+
+    lines = [
+        f"Reference ({reference_gui}): {reference_result['timer_value']} "
+        f"captured at {reference_capture_time:.3f}"
+    ]
+
+    all_within_tolerance = True
+
+    for gui, result in sorted(others.items()):
+        try:
+            gui_seconds = _parse_timer_seconds(result["timer_value"])
+        except ValueError as error:
+            lines.append(f"{gui}: could not parse timer reading -- {error}")
+            all_within_tolerance = False
+            continue
+
+        gui_capture_time = result["capture_timestamp"]
+
+        # Project this GUI's reading onto the reference's capture instant
+        # using the wall-clock gap between the two captures.
+        projected_seconds = gui_seconds + (
+            reference_capture_time - gui_capture_time
+        )
+        delta = abs(projected_seconds - reference_seconds)
+        within = delta <= tolerance_seconds
+        all_within_tolerance = all_within_tolerance and within
+
+        lines.append(
+            f"{gui}: {result['timer_value']} captured at {gui_capture_time:.3f} "
+            f"-> projected {projected_seconds:.2f}s vs reference "
+            f"{reference_seconds}s (delta {delta:.2f}s, "
+            f"{'within' if within else 'EXCEEDS'} {tolerance_seconds}s tolerance)"
+        )
+
+    return {
+        **base_result,
+        "actual": "\n".join(lines),
+        "status": "PASS" if all_within_tolerance else "FAIL",
+    }
+
+
+def execute_step(test_case, step, case_results=None):
 
     step_type = str(
         step.get(
@@ -219,6 +367,13 @@ def execute_step(test_case, step):
         return run_remote_step(
             test_case,
             step,
+        )
+
+    if step_type == "compare_timers":
+        return run_compare_timers_step(
+            test_case,
+            step,
+            case_results,
         )
 
     return {

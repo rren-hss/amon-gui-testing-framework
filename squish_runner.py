@@ -322,6 +322,18 @@ def normalize_results(test_case, step, result):
             "timestamp",
             timestamp(),
         ),
+        # Optional, only present for steps that pair a captured value with
+        # a precise Python-side wall-clock reading (e.g. QA-T1139's
+        # surgical timer sync check) -- None for every other step type.
+        "timer_value": result.get(
+            "timer_value"
+        ),
+        "capture_timestamp": result.get(
+            "capture_timestamp"
+        ),
+        "read_latency": result.get(
+            "read_latency"
+        ),
     }
 
 def create_failure(test_case, step, actual,):

@@ -1,11 +1,14 @@
 import getpass
 import re
+import subprocess
 
 import paramiko
 
 from config import (
+    REMOTE_TARGETS,
     SSH_CONNECT_TIMEOUT,
     SSH_USER,
+    TARGET_ENVIRONMENT,
 )
 from utils import timestamp
 
@@ -208,45 +211,17 @@ def terminal_failure(
     }
 
 
-def run_remote_step(
+def _run_ssh_command(
     test_case,
     step,
+    host,
+    username,
+    remote_command,
+    timeout,
 ):
-    host = step.get(
-        "host",
-        test_case.get("host"),
-    )
-
-    remote_command = step.get("command")
-
-    username = step.get(
-        "username",
-        test_case.get(
-            "username",
-            SSH_USER,
-        ),
-    )
-
-    timeout = int(
-        step.get(
-            "timeout",
-            test_case.get(
-                "timeout",
-                300,
-            ),
-        )
-    )
-
-    if not host or not remote_command:
-        return terminal_failure(
-            test_case,
-            step,
-            (
-                "Terminal step requires both "
-                "'host' and 'command'."
-            ),
-        )
-
+    """Runs remote_command over SSH on host. Returns (exit_code, output) on
+    success, or a terminal_failure() dict on any connection/execution error.
+    """
     password = get_ssh_password()
 
     client = paramiko.SSHClient()
@@ -297,6 +272,8 @@ def run_remote_step(
         if not output:
             output = "No terminal output."
 
+        return exit_code, output
+
     except paramiko.AuthenticationException:
         return terminal_failure(
             test_case,
@@ -336,6 +313,168 @@ def run_remote_step(
 
     finally:
         client.close()
+
+
+def _run_docker_command(
+    test_case,
+    step,
+    container,
+    remote_command,
+    timeout,
+):
+    """Runs remote_command inside container via `docker exec`. Returns
+    (exit_code, output) on success, or a terminal_failure() dict on any
+    execution error. Mirrors _run_ssh_command's contract so run_remote_step
+    can treat either transport identically once a result comes back.
+    """
+    try:
+        completed = subprocess.run(
+            ["docker", "exec", container, "bash", "-c", remote_command],
+            capture_output=True,
+            text=True,
+            timeout=timeout,
+        )
+
+        output = "\n".join(
+            filter(
+                None,
+                [
+                    completed.stdout.strip(),
+                    completed.stderr.strip(),
+                ],
+            )
+        ).strip()
+
+        if not output:
+            output = "No terminal output."
+
+        return completed.returncode, output
+
+    except subprocess.TimeoutExpired:
+        return terminal_failure(
+            test_case,
+            step,
+            (
+                f"docker exec timed out after {timeout}s "
+                f"on {container}."
+            ),
+        )
+
+    except FileNotFoundError:
+        return terminal_failure(
+            test_case,
+            step,
+            "The 'docker' CLI is not available on this machine.",
+        )
+
+    except Exception as error:
+        return terminal_failure(
+            test_case,
+            step,
+            (
+                f"Unexpected docker exec error "
+                f"for {container}: {error}"
+            ),
+        )
+
+
+def run_remote_step(
+    test_case,
+    step,
+):
+    remote_command = step.get("command")
+
+    username = step.get(
+        "username",
+        test_case.get(
+            "username",
+            SSH_USER,
+        ),
+    )
+
+    timeout = int(
+        step.get(
+            "timeout",
+            test_case.get(
+                "timeout",
+                300,
+            ),
+        )
+    )
+
+    if not remote_command:
+        return terminal_failure(
+            test_case,
+            step,
+            "Terminal step requires 'command'.",
+        )
+
+    # "target" (a REMOTE_TARGETS key like "cart"/"cockpit"/"perception") is
+    # the environment-aware way to say where a step runs: in docker mode it
+    # resolves to a container for `docker exec`, in physical mode to an SSH
+    # host. "host" is kept working as a direct SSH override for existing
+    # steps (e.g. the bootcheck case) that don't need docker support at all.
+    target = step.get(
+        "target",
+        test_case.get("target"),
+    )
+    host = step.get(
+        "host",
+        test_case.get("host"),
+    )
+
+    if TARGET_ENVIRONMENT == "docker" and not host:
+        if target not in REMOTE_TARGETS:
+            return terminal_failure(
+                test_case,
+                step,
+                (
+                    f"Terminal step in docker mode requires a 'target' "
+                    f"matching one of {sorted(REMOTE_TARGETS)}, got "
+                    f"{target!r}."
+                ),
+            )
+
+        container = REMOTE_TARGETS[target]["docker_container"]
+        # Not used for connecting in this branch -- only for the "gui"
+        # fallback and the "Host: ..." line in the report below, so both
+        # branches can share that reporting code unchanged.
+        host = container
+        result = _run_docker_command(
+            test_case,
+            step,
+            container,
+            remote_command,
+            timeout,
+        )
+
+    else:
+        if not host and target in REMOTE_TARGETS:
+            host = REMOTE_TARGETS[target]["ssh_host"]
+
+        if not host:
+            return terminal_failure(
+                test_case,
+                step,
+                (
+                    "Terminal step requires either 'host' or a 'target' "
+                    f"matching one of {sorted(REMOTE_TARGETS)}."
+                ),
+            )
+
+        result = _run_ssh_command(
+            test_case,
+            step,
+            host,
+            username,
+            remote_command,
+            timeout,
+        )
+
+    if isinstance(result, dict):
+        return result
+
+    exit_code, output = result
 
     parser_type = (
         step.get(
