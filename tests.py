@@ -181,12 +181,16 @@ TEST_STEPS = [
          "name": "Verify That Cart GUI Can Log In And Unlock Other GUIs",
          "gui": "Multi-GUI",
          "failure_policy": "continue",
+         # reset_before only: this is the scenario's login boundary, so we
+         # want a known-clean pre-login state to test login itself against.
+         # No reset_after -- QA-T1131 (case setup / move to draping) runs
+         # immediately after and has no reset of its own, relying on this
+         # case leaving the Cart GUI logged in. A reset_after here would
+         # wipe that login right before QA-T1131 needs it.
          "reset_before": True,
-         "reset_after": True,
-         # QA-T1131 (case setup / move to draping, runs immediately after
-         # this case) needs rviz on techpc alive to confirm motion -- its
-         # own reset_before/reset_after aren't set, so this reset_after is
-         # the one that actually determines whether techpc is up for it.
+         # QA-T1131 needs rviz on techpc alive to confirm motion -- since
+         # this case's reset_before is the only reset before QA-T1131
+         # runs, it's what determines whether techpc is up in time.
          "restart_techpc": True,
          "steps": [
              {
@@ -227,9 +231,19 @@ TEST_STEPS = [
         "name": "Verify Surgical Case Setup & Initialization",
         "gui": "Multi-GUI",
         "failure_policy": "abort",
+        "requires": ["QA-T1130"],
         "steps": [
             {
-                "step_id": "1 of 3",
+                "step_id": "1 of 5",
+                "type": "window_screenshot",
+                "gui": "techpcGUI",
+                "window_title_contains": "RViz",
+                "screenshot": "techpc_rviz_before_draping.png",
+                "instruction": "Capture the Tech PC's RViz window before 'Move to Draping' is triggered.",
+                "expected": "Evidence only -- capture succeeding is the pass criterion, not the sim's content. The pass/fail check that matters is the Cart GUI's 'ready for draping' assertion in the next step.",
+            },
+            {
+                "step_id": "2 of 5",
                 "type": "auto",
                 "gui": "cartGUI",
                 "squish_step": "verify_cart_case_setup",
@@ -239,7 +253,16 @@ TEST_STEPS = [
                 "demo_pause": True,
             },
             {
-                "step_id": "2 of 3",
+                "step_id": "3 of 5",
+                "type": "window_screenshot",
+                "gui": "techpcGUI",
+                "window_title_contains": "RViz",
+                "screenshot": "techpc_rviz_after_draping.png",
+                "instruction": "Capture the Tech PC's RViz window after 'Move to Draping' completes, for evidence alongside the Cart GUI's own assertion.",
+                "expected": "Evidence only -- capture succeeding is the pass criterion, not the sim's content.",
+            },
+            {
+                "step_id": "4 of 5",
                 "type": "auto",
                 "gui": "assistantGUI",
                 "squish_step": "agui_case_setup_verify",
@@ -248,7 +271,7 @@ TEST_STEPS = [
                 "expected": "Assistant GUI displays Case: 123, Eye Laterality: OS, Dr. Smith, and the ready-for-draping instructions.",
             },
             {
-                "step_id": "3 of 3",
+                "step_id": "5 of 5",
                 "type": "auto",
                 "gui": "surgeonGUI",
                 "squish_step": "sgui_case_setup_verify",
@@ -260,14 +283,17 @@ TEST_STEPS = [
     },
 
      
-#  Need to check
+    # Relies on QA-T1130 (login) + QA-T1131 (case setup) leaving the
+    # session logged in with a case set up -- no reset here or in
+    # QA-T1138/QA-T1137/QA-T1136 below, since Squish can't find the camera
+    # feed panels at all before login, and a reset here would break that
+    # whole chain for the rest of this camera-feed cluster too.
     {
             "id": "QA-T1134",
             "name": "Verify OCT camera feed on surgeon GUI",
             "gui": "surgeonGUI",
             "failure_policy": "continue",
-            "reset_before": True,
-            "reset_after": True,
+            "requires": ["QA-T1131"],
             "steps": [
                         {
                             "step_id": "QA-T1134",
@@ -285,6 +311,7 @@ TEST_STEPS = [
         "name": "Verify Side Camera Feeds on Surgeon GUI",
         "gui": "surgeonGUI",
         "failure_policy": "continue",
+        "requires": ["QA-T1131"],
         "steps": [
             {
                 "step_id": "1 of 2",
@@ -311,8 +338,7 @@ TEST_STEPS = [
         "name": "Verify Wide Camera Feed on Surgeon GUI",
         "gui": "surgeonGUI",
         "failure_policy": "continue",
-        "reset_before": True,
-        "reset_after": True,
+        "requires": ["QA-T1131"],
         "steps": [
                     {
                         "step_id": "QA-T1137",
@@ -330,6 +356,7 @@ TEST_STEPS = [
             "name": "Verify Telecentric Camera Feed on Assistant GUI",
             "gui": "assistantGUI",
             "failure_policy": "continue",
+            "requires": ["QA-T1131"],
             "steps": [
                 {
                     "step_id": "QA-T1136",
@@ -375,6 +402,7 @@ TEST_STEPS = [
             "name": "Surgical Case Flow Verification Test",
             "gui": "Multi-GUI",
             "failure_policy": "continue",
+            "requires": ["QA-T1131"],
             "steps": [
                 {
                     "step_id": "1 of 20",
@@ -506,6 +534,7 @@ TEST_STEPS = [
         "name": "Verify Surgical Timer Is In Sync Across Cart, Assistant, and Surgeon GUIs",
         "gui": "Multi-GUI",
         "failure_policy": "continue",
+        "requires": ["QA-T1156"],
         "steps": [
             {
                 "step_id": "1 of 4",

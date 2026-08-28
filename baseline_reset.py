@@ -23,10 +23,12 @@ def hard_reset(system="amon", restart_techpc=False):
     equivalents, auto-detected by the script itself) back to a known
     baseline via reset_surgical_sequence.sh.
 
-    Runs with inherited stdio rather than capturing output: the script
-    prompts for a y/N confirmation before touching anything, and in
-    physical mode reads SUDO_PASSWORD from the environment, so this needs
-    to be run interactively, not silently in the background.
+    Runs with inherited stdio rather than capturing output, but is fully
+    non-interactive: RESET_ASSUME_YES bypasses the script's "Continue?"
+    confirmation (a test case setting reset_before/reset_after: True is
+    itself the decision to reset -- asking again here would just block
+    automation), and in physical mode SUDO_PASSWORD is read from the
+    environment rather than prompted for.
 
     restart_techpc: pre-sets the script's RESTART_TECHPC env var, so it
     skips its own "Restart techpc (eng_gui/rviz2) too? [y/N]" prompt --
@@ -49,6 +51,7 @@ def hard_reset(system="amon", restart_techpc=False):
 
     env = os.environ.copy()
     env["RESTART_TECHPC"] = "1" if restart_techpc else "0"
+    env["RESET_ASSUME_YES"] = "1"
 
     completed = subprocess.run(
         [str(RESET_SCRIPT_PATH), system],

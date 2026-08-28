@@ -54,6 +54,13 @@
 # rviz's subscriptions in a state that self-heals via DDS rediscovery, so
 # say yes for cases that rely on watching motion in rviz. Pre-set
 # RESTART_TECHPC=1 or =0 to skip the prompt for scripted/non-interactive runs.
+#
+# Set RESET_ASSUME_YES=1 to bypass the main "Continue?" confirmation
+# (both modes) entirely -- baseline_reset.py's hard_reset() always sets
+# this when the test framework triggers a reset via reset_before/
+# reset_after, since a test case already opting into a reset is itself
+# the decision; a second confirmation at the shell level would just block
+# automation. Manual/interactive runs are unaffected by default.
 set -euo pipefail
 
 SYSTEM="${1:-amon}"
@@ -87,6 +94,19 @@ VERIFY_TIMEOUT_SECONDS=20
 SSH_PROBE_TIMEOUT_SECONDS=5
 
 confirm() {
+    # RESET_ASSUME_YES bypasses the prompt entirely -- set unconditionally
+    # by baseline_reset.py's hard_reset() whenever the test framework
+    # invokes this script, since reaching that point already means a test
+    # case explicitly requested the reset (reset_before/reset_after: True
+    # in tests.py). A human confirming again at that point isn't adding
+    # safety, just blocking automation. Manual/interactive use (running
+    # this script directly from a terminal) is unaffected by default --
+    # RESET_ASSUME_YES is only set by that one caller.
+    if [ "${RESET_ASSUME_YES:-0}" = "1" ]; then
+        echo "$1 [auto-confirmed via RESET_ASSUME_YES]"
+        return 0
+    fi
+
     read -r -p "$1 [y/N] " reply
     case "$reply" in
         y|Y) return 0 ;;

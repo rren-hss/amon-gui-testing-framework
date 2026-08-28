@@ -7,6 +7,14 @@ import names
 GUI_STATE_TIMEOUT_MS = 15000
 SCREENSHOT_RENDER_DELAY_SECONDS = 0.5
 
+# Moving to draping physically moves the cart's arms and runs a system
+# validation pass, which takes noticeably longer than a plain UI state
+# change -- confirmed against polaris_automated_testing's own DRAPING_TIMEOUT_MS
+# (documented there as "the best part of a minute on amon"). GUI_STATE_TIMEOUT_MS
+# (15s) is too short for this one wait specifically; observed failing 3/3 on a
+# cold container start on 2026-08-28.
+DRAPING_TIMEOUT_MS = 60000
+
 RESULT_PATH = os.environ["RESULT_PATH"]
 SCREENSHOT_DIR = os.environ["SCREENSHOT_DIR"]
 TARGET_AUT = os.environ.get("TARGET_AUT", "cart_gui")
@@ -294,7 +302,7 @@ def verify_cart_case_setup():
     snooze(1)
     ready_label = waitForObject(
         names.the_system_is_in_the_Draping_position_Before_scrubbing_in_complete_the_following_steps_MyLabel,
-        GUI_STATE_TIMEOUT_MS
+        DRAPING_TIMEOUT_MS
     )
     
     test.compare(
@@ -349,7 +357,7 @@ def agui_init_case_button():
 def cgui_ready_draping():
     ready_label = waitForObject(
             names.the_system_is_in_the_Draping_position_Before_scrubbing_in_complete_the_following_steps_MyLabel,
-            GUI_STATE_TIMEOUT_MS
+            DRAPING_TIMEOUT_MS
         )
 
 def agui_click_ini_case():

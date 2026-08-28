@@ -1,12 +1,15 @@
 import json
 import os
 import subprocess
+from pathlib import Path
 
 from squish_runner import run_squish_step
 from remote_runner import run_remote_step
 from tests import APPLICATIONS
 from utils import timestamp
 from config import MANUAL_POPUP_PATH
+from run_context import SCREENSHOT_DIR
+from window_screenshot import capture_window
 
 def resolve_application(test_case, step):
     gui = step.get(
@@ -333,6 +336,62 @@ def run_compare_timers_step(test_case, step, case_results):
     }
 
 
+def run_window_screenshot_step(test_case, step):
+    """Screenshots a window Squish has no AUT for (e.g. Tech PC's rviz2),
+    via window_screenshot.py's wmctrl+mss capture. Evidence only -- this
+    step's pass/fail reflects whether the capture itself succeeded, not
+    anything about what the window shows. The check that matters (did the
+    GUI actually transition correctly) belongs to a real Squish assertion
+    elsewhere in the case, e.g. QA-T1131's cart step already verifies the
+    "ready for draping" text.
+    """
+
+    base_result = {
+        "test_case": test_case["id"],
+        "test_name": test_case["name"],
+        "gui": step.get("gui", test_case.get("gui", "Unknown")),
+        "step_id": step.get("step_id", "UNKNOWN"),
+        "step_type": "Framework",
+        "instruction": step.get(
+            "instruction",
+            "Capture a screenshot of a window outside Squish's reach.",
+        ),
+        "expected": step.get("expected", "Screenshot captured successfully."),
+        "notes": "",
+        "timestamp": timestamp(),
+    }
+
+    title_contains = step.get("window_title_contains")
+
+    if not title_contains:
+        return {
+            **base_result,
+            "actual": "No window_title_contains configured for this step.",
+            "status": "FAIL",
+            "screenshot": None,
+        }
+
+    screenshot_name = step.get("screenshot") or f"{test_case['id']}_{step.get('step_id', 'window')}.png"
+    screenshot_path = Path(SCREENSHOT_DIR) / screenshot_name
+
+    try:
+        window = capture_window(title_contains, screenshot_path)
+    except Exception as error:
+        return {
+            **base_result,
+            "actual": f"Could not capture window screenshot: {error}",
+            "status": "FAIL",
+            "screenshot": None,
+        }
+
+    return {
+        **base_result,
+        "actual": f"Captured screenshot of window '{window['title']}' (matched '{title_contains}').",
+        "status": "PASS",
+        "screenshot": str(screenshot_path),
+    }
+
+
 def execute_step(test_case, step, case_results=None):
 
     step_type = str(
@@ -374,6 +433,12 @@ def execute_step(test_case, step, case_results=None):
             test_case,
             step,
             case_results,
+        )
+
+    if step_type == "window_screenshot":
+        return run_window_screenshot_step(
+            test_case,
+            step,
         )
 
     return {

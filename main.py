@@ -11,13 +11,14 @@ from config import (
 from baseline_reset import return_to_baseline
 from case_picker import pick_test_cases
 from squish_preflight import run_preflight
+import prereq_status
 from report_generator import (
     generate_reports,
     generate_rollup_report,
     open_reports,
     print_summary,
 )
-from run_context import RUN_DIR
+from run_context import RUN_DIR, RUN_ID
 from step_executor import execute_step
 from tests import TEST_STEPS
 from utils import setup_logging, timestamp
@@ -136,9 +137,9 @@ def add_framework_failure(results, error):
 def add_baseline_reset_failure(results, test_case):
     """Records why a test case's steps never ran when its pre-case
     return_to_baseline() call fails. Uses ABORTED (not FAIL): the case
-    itself was never attempted, so it isn't a step failure, and ABORTED is
-    the one status report_generator.py already treats as taking priority
-    over everything else for a case's overall result.
+    itself was never attempted, so it isn't a step failure -- see
+    report_generator.py's status priority (BLOCKED > ABORTED > FAIL > WARN)
+    for how this ranks against other outcomes in a case's overall result.
     """
     results.append(
         {
@@ -161,6 +162,39 @@ def add_baseline_reset_failure(results, test_case):
                 "unready baseline."
             ),
             "status": "ABORTED",
+            "screenshot": None,
+            "notes": "",
+            "timestamp": timestamp(),
+        }
+    )
+
+
+def add_blocked_result(results, test_case, blocking_ids):
+    """Records why a test case's steps never ran because a prerequisite
+    (test_case["requires"]) is on record as having failed -- see
+    prereq_status.py. Uses the dedicated BLOCKED status: this isn't a step
+    failure or an infrastructure problem (ABORTED), it's a case that was
+    never attempted because something it explicitly depends on didn't pass.
+    """
+    ids = ", ".join(blocking_ids)
+    results.append(
+        {
+            "test_case": test_case["id"],
+            "test_name": test_case["name"],
+            "gui": test_case.get("gui", "N/A"),
+            "step_id": "PREREQ-BLOCKED",
+            "step_type": "Framework",
+            "instruction": (
+                f"Requires {', '.join(test_case.get('requires', []))} to "
+                "have passed before running."
+            ),
+            "expected": "All required prerequisite test cases passed.",
+            "actual": (
+                f"Blocked: prerequisite(s) {ids} are on record as FAILED "
+                "(see prereq_status.json). Test case skipped rather than "
+                "run on top of a known-bad prerequisite."
+            ),
+            "status": "BLOCKED",
             "screenshot": None,
             "notes": "",
             "timestamp": timestamp(),
@@ -237,6 +271,24 @@ def main():
                 test_case["name"],
             )
 
+            blocking_ids = prereq_status.blocking_prereqs(
+                test_case.get("requires")
+            )
+            if blocking_ids:
+                logging.error(
+                    "Test case %s blocked - prerequisite(s) %s are on "
+                    "record as failed.",
+                    test_case["id"],
+                    ", ".join(blocking_ids),
+                )
+                add_blocked_result(case_results, test_case, blocking_ids)
+                all_results.extend(case_results)
+                test_results.append((test_case, case_results))
+                prereq_status.record_result(
+                    test_case["id"], case_results, run_id=RUN_ID
+                )
+                continue
+
             if test_case.get("reset_before"):
                 logging.info(
                     "Returning to baseline before test case %s.",
@@ -253,6 +305,9 @@ def main():
                     add_baseline_reset_failure(case_results, test_case)
                     all_results.extend(case_results)
                     test_results.append((test_case, case_results))
+                    prereq_status.record_result(
+                        test_case["id"], case_results, run_id=RUN_ID
+                    )
                     continue
 
             for step in test_case.get("steps", []):
@@ -298,6 +353,9 @@ def main():
                 (test_case,
                 case_results,
                 )
+            )
+            prereq_status.record_result(
+                test_case["id"], case_results, run_id=RUN_ID
             )
 
             if abort_execution:

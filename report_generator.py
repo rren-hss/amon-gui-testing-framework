@@ -114,6 +114,9 @@ def _normalize_status(status):
 
     normalized = str(status or "").strip().upper()
 
+    if normalized.startswith("BLOCK"):
+        return "BLOCKED"
+
     if normalized.startswith("ABORT"):
         return "ABORTED"
 
@@ -201,6 +204,9 @@ def _status_css_class(status):
     if normalized == "PASS":
         return "pass"
 
+    if normalized == "BLOCKED":
+        return "blocked"
+
     if normalized == "ABORTED":
         return "aborted"
 
@@ -211,7 +217,14 @@ def _status_css_class(status):
 
 
 def _determine_overall_result(results):
-    """Determine the overall result for one test case."""
+    """Determine the overall result for one test case.
+
+    Priority: BLOCKED > ABORTED > FAIL > WARN > PASSED. BLOCKED ranks
+    above ABORTED because a blocked case (see prereq_status.py /
+    main.py's "requires" handling) was never attempted at all -- not even
+    the infrastructure setup (reset_before) that an ABORTED case got as
+    far as trying.
+    """
 
     statuses = [
         _normalize_status(
@@ -219,6 +232,9 @@ def _determine_overall_result(results):
         )
         for result in results
     ]
+
+    if "BLOCKED" in statuses:
+        return "BLOCKED"
 
     if "ABORTED" in statuses:
         return "ABORTED"
@@ -665,6 +681,11 @@ def generate_html_report(
                 color: #9a6700;
             }}
 
+            .overall-status.blocked {{
+                background: #e6e0f7;
+                color: #5b3a9e;
+            }}
+
             .overall-status.warn {{
                 background: #fff4cc;
                 color: #806000;
@@ -683,6 +704,11 @@ def generate_html_report(
             .status-cell.aborted {{
                 background: #fff1c7;
                 color: #9a6700;
+            }}
+
+            .status-cell.blocked {{
+                background: #e6e0f7;
+                color: #5b3a9e;
             }}
 
             .status-cell.warn {{
@@ -1393,6 +1419,7 @@ def generate_rollup_report(
             .case-link-dot.pass {{ background: #1a7a1a; }}
             .case-link-dot.fail {{ background: #b30000; }}
             .case-link-dot.aborted {{ background: #9a6700; }}
+            .case-link-dot.blocked {{ background: #5b3a9e; }}
             .case-link-dot.warn {{ background: #806000; }}
             .case-link-dot.not-executed {{ background: #999; }}
 
@@ -1493,12 +1520,14 @@ def generate_rollup_report(
             .overall-status.pass {{ background: #d9f2d9; color: #1a7a1a; }}
             .overall-status.fail {{ background: #fbd6d6; color: #b30000; }}
             .overall-status.aborted {{ background: #fff1c7; color: #9a6700; }}
+            .overall-status.blocked {{ background: #e6e0f7; color: #5b3a9e; }}
             .overall-status.warn {{ background: #fff4cc; color: #806000; }}
             .overall-status.not-executed {{ background: #eee; color: #666; }}
 
             .status-cell.pass {{ background: #d9f2d9; color: #1a7a1a; }}
             .status-cell.fail {{ background: #fbd6d6; color: #b30000; }}
             .status-cell.aborted {{ background: #fff1c7; color: #9a6700; }}
+            .status-cell.blocked {{ background: #e6e0f7; color: #5b3a9e; }}
             .status-cell.warn {{ background: #fff4cc; color: #806000; }}
 
             .text-content {{

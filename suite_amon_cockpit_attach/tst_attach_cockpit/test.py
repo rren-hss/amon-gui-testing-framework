@@ -161,7 +161,7 @@ def verify_sgui_prelogin():
     )
 
 def verify_sgui_post_login():
-    surgeon_label = waitForObject(names.surgeon_MyLabel)
+    surgeon_label = waitForObject(names.surgeon_MyLabel, GUI_STATE_TIMEOUT_MS)
     test.verify(
         surgeon_label.visible,
         "Verify sGUI Surgeon label in the top bar is visible",
